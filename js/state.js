@@ -367,7 +367,13 @@ class TimerStore {
         state.countdown.overtimeMs = 0;
         state.countdown.startedAt = now;
         state.countdown.targetEndTime = now + state.countdown.remainingMs;
-        state.countdown.triggeredRuleIds = [];
+
+        // Requirement 2: If starting duration was less than or equal to bell alert time, do not ring
+        const startSec = state.countdown.initialSec;
+        const autoSuppressed = (state.bellRules || [])
+          .filter(r => r.type === 'remaining' && startSec <= r.timeSec)
+          .map(r => r.id);
+        state.countdown.triggeredRuleIds = autoSuppressed;
       } else if (state.countdown.status === 'paused') {
         if (state.countdown.remainingMs > 0) {
           state.countdown.status = 'running';
@@ -428,6 +434,18 @@ class TimerStore {
         } else {
           state.countdown.overtimeMs = Math.max(0, state.countdown.overtimeMs - deltaMs);
         }
+      }
+
+      // If time was added beyond a remaining rule trigger point, re-arm that rule
+      if (deltaSeconds > 0 && (state.countdown.status === 'running' || state.countdown.status === 'paused')) {
+        const curSec = Math.ceil(state.countdown.remainingMs / 1000);
+        state.countdown.triggeredRuleIds = (state.countdown.triggeredRuleIds || []).filter(id => {
+          const rule = (state.bellRules || []).find(r => r.id === id);
+          if (rule && rule.type === 'remaining' && curSec > rule.timeSec) {
+            return false; // Re-arm rule
+          }
+          return true;
+        });
       }
 
       const duration = state.displaySettings.iconDurationMs || 1250;
@@ -558,6 +576,13 @@ class TimerStore {
       let shouldFire = false;
 
       if (rule.type === 'remaining') {
+        // Requirement 2: If starting duration was less than or equal to trigger time, do not ring
+        if (cd.initialSec && cd.initialSec <= rule.timeSec && remainingSec <= rule.timeSec) {
+          triggered.add(rule.id);
+          cd.triggeredRuleIds = Array.from(triggered);
+          continue;
+        }
+
         if (remainingSec <= rule.timeSec && cd.status === 'running') {
           shouldFire = true;
         }

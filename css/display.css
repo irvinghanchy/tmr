@@ -130,7 +130,7 @@ html, body {
 .clock-content.mode-side .side-spacer {
   display: flex;
   width: min(11.5vw, 18vh); /* Exactly identical to icon-slot width */
-  min-height: min(11.5vw, 18vh);
+  height: min(11.5vw, 18vh);
   pointer-events: none;
   visibility: hidden;
   flex-shrink: 0;
@@ -143,7 +143,8 @@ html, body {
   justify-content: flex-start;
   gap: clamp(0.5rem, 1vh, 1.25rem);
   width: min(11.5vw, 18vh);
-  min-height: min(11.5vw, 18vh);
+  height: min(11.5vw, 18vh); /* Fixed height anchor so multiple icons never shift clock digits vertically */
+  overflow: visible; /* Multi-icons expand downward freely */
   flex-shrink: 0;
   padding-top: 0.06em;
 }
@@ -167,7 +168,8 @@ html, body {
   gap: clamp(0.6rem, 1.5vw, 1.5rem);
   margin-top: clamp(0.75rem, 2vh, 1.75rem);
   width: auto;
-  min-height: auto;
+  height: 0; /* Zero-height container with visible overflow so digits never shift */
+  overflow: visible;
 }
 
 /* --- Layout Mode 3: Hide Icon --- */
@@ -253,6 +255,7 @@ html, body {
   width: min(11.5vw, 18vh);
   height: min(11.5vw, 18vh);
   max-height: min(11.5vw, 18vh);
+  flex-shrink: 0; /* Icons never shrink when multiple items stack! */
   animation: m3eEnterVertical 280ms cubic-bezier(0.05, 0.7, 0.1, 1.0) both;
   will-change: transform, opacity, max-height;
   transition: transform 250ms cubic-bezier(0.2, 0, 0, 1),
@@ -274,6 +277,7 @@ html, body {
   height: min(6vw, 9vh);
   max-width: min(6vw, 9vh);
   max-height: min(6vw, 9vh);
+  flex-shrink: 0; /* Mini icons never shrink */
   animation: m3eEnterHorizontal 280ms cubic-bezier(0.05, 0.7, 0.1, 1.0) both;
 }
 
@@ -342,6 +346,8 @@ html, body {
   align-items: baseline;
   user-select: none;
   -webkit-user-select: none;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .clock-digits.overtime {
@@ -382,6 +388,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Floating HUD Controls */
