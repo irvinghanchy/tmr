@@ -1,6 +1,7 @@
 /**
- * TMR Presentation Display Window Script (v3.2)
- * Features multi-icon stacking and smooth queue reflow.
+ * TMR Presentation Display Window Script (v3.3)
+ * Implements synchronized colon blinking on second changes,
+ * no-hour-rollover default (up to 99 min), and hours-steady colons.
  */
 
 (function () {
@@ -52,10 +53,13 @@
   });
 
   /**
-   * Format digits HTML with blinking colons (strictly trimmed, zero trailing space)
+   * Format digits HTML with blinking colons
+   * When shouldBlink is false: colons stay constantly visible (e.g. when hours present).
+   * When shouldBlink is true: colons blink in lockstep with the second tick.
    */
   function formatDigitsHTML(str, shouldBlink, isVisible) {
-    const colonClass = shouldBlink && !isVisible ? 'digit-colon colon-hidden' : 'digit-colon';
+    const isHidden = shouldBlink && !isVisible;
+    const colonClass = isHidden ? 'digit-colon colon-hidden' : 'digit-colon';
     return str
       .trim()
       .split(':')
@@ -65,6 +69,8 @@
 
   function render(state) {
     if (!state) return;
+
+    const allowHour = !!state.displaySettings?.allowHourRollover;
 
     // 1. Fade animation config
     if (state.fadeAnimation) {
@@ -89,17 +95,21 @@
     layerCountdown.classList.toggle('active', active === 'countdown');
     layerBlackout.classList.toggle('active', active === 'blackout');
 
-    // Colon blink clock phase (500ms on / 500ms off)
-    const isColonPhaseVisible = Date.now() % 1000 < 500;
-
-    // 4. Layer: Current Time
+    // ------------------------------------------------------------------
+    // Layer: Current Time
+    // ------------------------------------------------------------------
     const now = new Date();
     const timeStr = TimerStore.formatTime(
       now,
       state.timeConfig.format24,
       state.timeConfig.showSeconds
     );
-    digitsTime.innerHTML = formatDigitsHTML(timeStr, true, isColonPhaseVisible);
+    // Requirement 2: If hours present, colons do NOT blink
+    const hasHoursInTime = timeStr.split(':').length === 3;
+    const isTimeColonVisible = now.getMilliseconds() < 500;
+    const shouldBlinkTime = !hasHoursInTime;
+
+    digitsTime.innerHTML = formatDigitsHTML(timeStr, shouldBlinkTime, isTimeColonVisible);
 
     if (state.timeConfig.showDate) {
       const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -113,26 +123,47 @@
       sublineDate.style.display = 'none';
     }
 
-    // 5. Layer: Count-up
+    // ------------------------------------------------------------------
+    // Layer: Count-up
+    // ------------------------------------------------------------------
     const cuRunning = state.countup.status === 'running';
-    const cuStr = TimerStore.formatHMS(state.countup.elapsedMs);
-    digitsCountup.innerHTML = formatDigitsHTML(cuStr, cuRunning, isColonPhaseVisible);
+    const cuStr = TimerStore.formatHMS(state.countup.elapsedMs, { allowHourRollover: allowHour });
+    const hasHoursInCu = cuStr.split(':').length === 3;
 
-    // 6. Layer: Countdown & Overtime
+    // Requirement 1: Colon appears on exact second tick boundary
+    // Requirement 2: When hours present, do not blink
+    const cuColonVisible = (state.countup.elapsedMs % 1000) < 500;
+    const cuShouldBlink = cuRunning && !hasHoursInCu;
+
+    digitsCountup.innerHTML = formatDigitsHTML(cuStr, cuShouldBlink, cuColonVisible);
+
+    // ------------------------------------------------------------------
+    // Layer: Countdown & Overtime
+    // ------------------------------------------------------------------
     const cd = state.countdown;
     const cdRunning = cd.status === 'running' || cd.status === 'overtime';
+    let cdStr = '';
+    let cdColonVisible = true;
+
     if (cd.status === 'overtime') {
       const prefix = state.displaySettings?.overtimePrefix || '+';
-      const cdStr = `${prefix}${TimerStore.formatHMS(cd.overtimeMs)}`;
-      digitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
+      cdStr = `${prefix}${TimerStore.formatHMS(cd.overtimeMs, { allowHourRollover: allowHour })}`;
+      cdColonVisible = (cd.overtimeMs % 1000) < 500;
       digitsCountdown.classList.add('overtime');
     } else {
-      const cdStr = TimerStore.formatHMS(cd.remainingMs);
-      digitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
+      cdStr = TimerStore.formatHMS(cd.remainingMs, { allowHourRollover: allowHour });
+      cdColonVisible = ((1000 - (cd.remainingMs % 1000)) % 1000) < 500;
       digitsCountdown.classList.remove('overtime');
     }
 
-    // 7. Multi-Icon Queue Handling (Requirement 11)
+    const hasHoursInCd = cdStr.split(':').length === 3;
+    const cdShouldBlink = cdRunning && !hasHoursInCd;
+
+    digitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdShouldBlink, cdColonVisible);
+
+    // ------------------------------------------------------------------
+    // Multi-Icon Queue Handling
+    // ------------------------------------------------------------------
     renderIcons(state, iconMode);
   }
 
@@ -147,7 +178,7 @@
     const now = Date.now();
     const activeLayer = state.activeLayer;
 
-    // Filter icons for active layer only (prevents paused leak from other layer)
+    // Filter icons for active layer only
     const validIcons = (state.icons || []).filter(
       (i) => i.layer === activeLayer && (i.persistent || i.expiresAt > now)
     );
@@ -157,14 +188,12 @@
     else if (activeLayer === 'countup') activeSlot = iconCountup;
     else if (activeLayer === 'countdown') activeSlot = iconCountdown;
 
-    // Clear inactive slots
     [iconTime, iconCountup, iconCountdown].forEach((slot) => {
       if (slot !== activeSlot && slot) slot.innerHTML = '';
     });
 
     if (!activeSlot) return;
 
-    // Render HTML for stacked icons
     const html = validIcons
       .map(
         (i) =>

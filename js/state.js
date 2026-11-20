@@ -1,9 +1,10 @@
 /**
- * TMR Core State & Synchronization Engine (v3.2)
- * Handles multi-icon queue, new default bell rules, and layer-scoped icons.
+ * TMR Core State & Synchronization Engine (v3.3)
+ * Handles multi-icon queue, synchronized colon blinking,
+ * and no-hour-rollover (up to 99 min) with allowHourRollover toggle.
  */
 
-const STORAGE_KEY = 'tmr_timer_state_v3_2';
+const STORAGE_KEY = 'tmr_timer_state_v3_3';
 const CHANNEL_NAME = 'tmr_timer_channel';
 
 // Default initial state matching new requirements
@@ -40,8 +41,12 @@ const defaultState = {
     triggeredRuleIds: []
   },
 
-  // Requirement 13: 
-  // 剩餘三分鐘響鈴一聲，一分半時兩聲，三十秒時三聲，時間到長鳴三聲，超時30秒再次長鳴三聲
+  // Default bell rules:
+  // 1. 剩餘三分鐘響鈴一聲
+  // 2. 一分半時兩聲
+  // 3. 三十秒時三聲
+  // 4. 時間到長鳴三聲
+  // 5. 超時30秒再次長鳴三聲
   bellRules: [
     { id: 'rule_1', type: 'remaining', timeSec: 180, rings: 1, isLong: false, enabled: true },
     { id: 'rule_2', type: 'remaining', timeSec: 90, rings: 2, isLong: false, enabled: true },
@@ -57,7 +62,7 @@ const defaultState = {
     muted: false
   },
 
-  // Requirement 11: Multi-icon queue
+  // Multi-icon queue
   // Array of { id, name, color, persistent, expiresAt, layer }
   icons: [
     {
@@ -72,12 +77,13 @@ const defaultState = {
 
   // Display settings
   displaySettings: {
-    iconMode: 'side',     // 'side' | 'bottom' | 'none'
-    iconDurationMs: 1250, // 1.25s
-    overtimePrefix: '+'   // '+' prefix when overtime
+    iconMode: 'side',          // 'side' | 'bottom' | 'none'
+    iconDurationMs: 1250,      // 1.25s
+    overtimePrefix: '+',       // '+' prefix when overtime
+    allowHourRollover: false   // Default false: minutes do not roll over to hours, max 99:59
   },
 
-  version: 3.2
+  version: 3.3
 };
 
 class TimerStore {
@@ -205,7 +211,7 @@ class TimerStore {
   }
 
   // ==========================================
-  // Icon Queue Management (Requirement 11)
+  // Icon Queue Management
   // ==========================================
   addIcon(iconConfig) {
     const now = Date.now();
@@ -219,7 +225,7 @@ class TimerStore {
       layer: iconConfig.layer || this.state.activeLayer
     };
 
-    // Remove any existing icon with same id or same persistent type
+    // Remove any existing icon with same persistent type on same layer
     this.state.icons = this.state.icons.filter(i => {
       if (iconConfig.persistent && i.name === iconConfig.name && i.layer === newIcon.layer) {
         return false;
@@ -244,7 +250,7 @@ class TimerStore {
   }
 
   // ==========================================
-  // Layer Switching (Requirements 1, 3, 9)
+  // Layer Switching
   // ==========================================
   setActiveLayer(layer) {
     if (this.state.activeLayer === layer) return;
@@ -253,29 +259,23 @@ class TimerStore {
       state.previousLayer = state.activeLayer;
       state.activeLayer = layer;
 
-      // Requirement 1: Clear icons from previous layer so paused icons do not leak
+      // Clear icons from previous layer
       state.icons = [];
 
-      const now = Date.now();
       const duration = state.displaySettings.iconDurationMs || 1250;
 
       if (layer === 'time') {
-        // Icon Rule 1: Briefly show gray watch
         this.addIcon({ name: 'watch', color: 'gray', layer: 'time', durationMs: duration });
       } else if (layer === 'countup') {
-        // Requirement 3: If running when switched, show timer_arrow_up
         if (state.countup.status === 'running') {
           this.addIcon({ name: 'timer_arrow_up', color: 'green', layer: 'countup', durationMs: duration });
         } else if (state.countup.status === 'paused') {
-          // Requirement 9: timer_pause
           this.addIcon({ name: 'timer_pause', color: 'orange', persistent: true, layer: 'countup' });
         }
       } else if (layer === 'countdown') {
-        // Requirement 3: If running when switched, show timer_arrow_down
         if (state.countdown.status === 'running' || state.countdown.status === 'overtime') {
           this.addIcon({ name: 'timer_arrow_down', color: 'lightblue', layer: 'countdown', durationMs: duration });
         } else if (state.countdown.status === 'paused') {
-          // Requirement 9: timer_pause
           this.addIcon({ name: 'timer_pause', color: 'orange', persistent: true, layer: 'countdown' });
         }
       }
@@ -307,10 +307,8 @@ class TimerStore {
         state.countup.startedAt = now - state.countup.elapsedMs;
       }
 
-      // Remove persistent pause icon
       this.removeIconByName('timer_pause', 'countup');
 
-      // Add green timer_arrow_up
       const duration = state.displaySettings.iconDurationMs || 1250;
       this.addIcon({ name: 'timer_arrow_up', color: 'green', layer: 'countup', durationMs: duration });
     });
@@ -323,7 +321,6 @@ class TimerStore {
         state.countup.pausedAt = Date.now();
         state.countup.elapsedMs = Date.now() - (state.countup.startedAt || Date.now());
 
-        // Requirement 9: Show orange timer_pause (persistent)
         this.addIcon({ name: 'timer_pause', color: 'orange', persistent: true, layer: 'countup' });
       }
     });
@@ -392,7 +389,6 @@ class TimerStore {
     this.update((state) => {
       if (state.countdown.status === 'running' || state.countdown.status === 'overtime') {
         state.countdown.status = 'paused';
-        // Requirement 9: Show orange timer_pause
         this.addIcon({ name: 'timer_pause', color: 'orange', persistent: true, layer: 'countdown' });
       }
     });
@@ -411,7 +407,6 @@ class TimerStore {
     });
   }
 
-  // Requirement 10: Adjust countdown with more_time / search_activity in gray
   adjustCountdown(deltaSeconds) {
     this.update((state) => {
       const deltaMs = deltaSeconds * 1000;
@@ -435,9 +430,6 @@ class TimerStore {
         }
       }
 
-      // Requirement 10: if adjusting while counting down:
-      // + time -> gray more_time
-      // - time -> gray search_activity
       const duration = state.displaySettings.iconDurationMs || 1250;
       if (deltaSeconds > 0) {
         this.addIcon({ name: 'more_time', color: 'gray', layer: 'countdown', durationMs: duration });
@@ -506,7 +498,7 @@ class TimerStore {
 
     this.tickerInterval = setInterval(() => {
       this.tick();
-    }, 50);
+    }, 40);
   }
 
   tick() {
@@ -515,7 +507,7 @@ class TimerStore {
 
     if (this.state.countup.status === 'running') {
       const elapsed = now - this.state.countup.startedAt;
-      if (Math.abs(elapsed - this.state.countup.elapsedMs) >= 50) {
+      if (Math.abs(elapsed - this.state.countup.elapsedMs) >= 40) {
         this.state.countup.elapsedMs = elapsed;
         stateChanged = true;
       }
@@ -589,20 +581,32 @@ class TimerStore {
     }
   }
 
-  // Utilities
+  /**
+   * Utilities: formatHMS
+   * Requirement 2:
+   * When allowHourRollover is false (default):
+   * Do not roll over to hours, minutes go up to 99 (e.g. 75:00, 99:59).
+   * When allowHourRollover is true:
+   * When totalSec >= 3600, formats as HH:MM:SS.
+   */
   static formatHMS(ms, options = {}) {
     if (ms < 0) ms = 0;
     const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-
     const pad = (n) => String(n).padStart(2, '0');
 
-    if (h > 0 || options.alwaysShowHours) {
+    const allowHour = !!options.allowHourRollover;
+
+    if (allowHour && totalSec >= 3600) {
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
       return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    } else {
+      // Default: no hour rollover, minutes up to 99!
+      const m = Math.min(99, Math.floor(totalSec / 60));
+      const s = totalSec % 60;
+      return `${pad(m)}:${pad(s)}`;
     }
-    return `${pad(m)}:${pad(s)}`;
   }
 
   static formatTime(date, format24 = true, showSeconds = false) {

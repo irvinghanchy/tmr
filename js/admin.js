@@ -1,6 +1,8 @@
 /**
- * TMR Admin Console Master Script (v3.2)
- * Full implementation of multi-icon queues, micro-adjustments, mutual exclusive buttons, and layer indicators.
+ * TMR Admin Console Master Script (v3.3)
+ * Implements synchronized colon blinking on second changes,
+ * no-hour-rollover default (up to 99 min), and hours-steady colons.
+ * Active display buttons are unclickable and locked without changing text.
  */
 
 (function () {
@@ -40,6 +42,7 @@
   const toggleFadeAnim = document.getElementById('toggle-fade-anim');
   const selectFadeDuration = document.getElementById('select-fade-duration');
   const selectIconMode = document.getElementById('select-icon-mode');
+  const toggleAllowHour = document.getElementById('toggle-allow-hour');
 
   // Mode 1 (Time)
   const cardModeTime = document.getElementById('card-mode-time');
@@ -74,7 +77,7 @@
   const btnCountdownReset = document.getElementById('btn-countdown-reset');
   const btnShowCountdown = document.getElementById('btn-show-countdown');
 
-  // Delta adjustment buttons (Requirement 14)
+  // Delta adjustment buttons (±5s, ±10s, ±15s, ±30s, ±45s, ±1m, ±3m, ±5m)
   const btnDeltas = document.querySelectorAll('.btn-delta');
   const inputCustomDeltaVal = document.getElementById('input-custom-delta-val');
   const selectCustomDeltaUnit = document.getElementById('select-custom-delta-unit');
@@ -156,21 +159,31 @@
 
   // Master Layer Switcher
   activeLayerBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      if (btn.classList.contains('pointer-events-none')) {
+        e.preventDefault();
+        return;
+      }
       const layer = btn.dataset.layer;
+      if (layer === store.state.activeLayer) return;
       store.setActiveLayer(layer);
     });
   });
 
-  // Card Show Layer Buttons (Requirement 2)
+  // Card Show Layer Buttons: Click disabled when active
   btnShowLayers.forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      if (btn.classList.contains('pointer-events-none') || btn.classList.contains('btn-active')) {
+        e.preventDefault();
+        return;
+      }
       const layer = btn.dataset.layer;
+      if (layer === store.state.activeLayer) return;
       store.setActiveLayer(layer);
     });
   });
 
-  // Transition & Icon Settings
+  // Transition & Settings
   toggleFadeAnim.addEventListener('change', () => {
     store.setFadeAnimation(toggleFadeAnim.checked, parseInt(selectFadeDuration.value));
   });
@@ -184,6 +197,14 @@
       state.displaySettings.iconMode = selectIconMode.value;
     });
   });
+
+  if (toggleAllowHour) {
+    toggleAllowHour.addEventListener('change', () => {
+      store.update((state) => {
+        state.displaySettings.allowHourRollover = toggleAllowHour.checked;
+      });
+    });
+  }
 
   // Audio Controls
   selectBellSound.addEventListener('change', () => {
@@ -302,7 +323,7 @@
     store.resetCountdown();
   });
 
-  // Requirement 14: ±5s, ±10s, ±15s, ±30s, ±45s, ±1m, ±3m, ±5m
+  // Quick Adjustment Buttons
   btnDeltas.forEach((btn) => {
     btn.addEventListener('click', () => {
       const delta = parseInt(btn.dataset.delta) || 0;
@@ -312,7 +333,7 @@
     });
   });
 
-  // Requirement 14: Custom delta adjustment
+  // Custom Delta Adjustment
   function applyCustomDelta(multiplier) {
     const val = parseInt(inputCustomDeltaVal.value) || 0;
     if (val <= 0) return;
@@ -365,10 +386,13 @@
   });
 
   /**
-   * Helper to format digits HTML with blinking colons (strictly trimmed, zero space)
+   * Helper to format digits HTML with blinking colons
+   * When shouldBlink is false: colons stay constantly visible (e.g. when hours present).
+   * When shouldBlink is true: colons blink in lockstep with the second tick.
    */
   function formatDigitsHTML(str, shouldBlink, isVisible) {
-    const colonClass = shouldBlink && !isVisible ? 'digit-colon colon-hidden' : 'digit-colon';
+    const isHidden = shouldBlink && !isVisible;
+    const colonClass = isHidden ? 'digit-colon colon-hidden' : 'digit-colon';
     return str
       .trim()
       .split(':')
@@ -384,10 +408,14 @@
   function renderAdmin(state) {
     if (!state) return;
 
+    const allowHour = !!state.displaySettings?.allowHourRollover;
+
     // 1. Controls sync
     toggleFadeAnim.checked = !!state.fadeAnimation;
     selectFadeDuration.value = String(state.fadeDurationMs || 400);
     selectIconMode.value = state.displaySettings?.iconMode || 'side';
+    if (toggleAllowHour) toggleAllowHour.checked = allowHour;
+
     checkTime24h.checked = !!state.timeConfig.format24;
     checkTimeSeconds.checked = !!state.timeConfig.showSeconds;
     checkTimeDate.checked = !!state.timeConfig.showDate;
@@ -397,34 +425,30 @@
 
     // 2. Active Layer buttons & card outlines
     const active = state.activeLayer;
+
+    // Master Switcher Buttons: lock active button so it's not clickable
     activeLayerBtns.forEach((btn) => {
       const isActive = btn.dataset.layer === active;
       if (isActive) {
-        btn.className = 'btn btn-sm btn-primary active-layer-btn select-none';
+        btn.className = 'btn btn-sm btn-primary active-layer-btn select-none pointer-events-none cursor-default shadow-sm';
       } else {
-        btn.className = 'btn btn-sm btn-outline active-layer-btn select-none';
+        btn.className = 'btn btn-sm btn-outline active-layer-btn select-none pointer-events-auto cursor-pointer';
       }
     });
 
-    // Requirement 2: 「展示中」的圖層，其切換顯示按鈕改成 active
+    // Card Switch Display Buttons:
+    // When active: styled as active & locked, WITHOUT changing text to "● 展示中"
     btnShowLayers.forEach((btn) => {
       const layer = btn.dataset.layer;
       const isCurrent = layer === active;
-      const textSpan = btn.querySelector('.btn-show-text');
       if (isCurrent) {
-        btn.className = 'btn btn-sm btn-primary btn-active select-none btn-show-layer';
-        if (textSpan) {
-          if (layer === 'time') textSpan.textContent = '● 目前時間展示中';
-          else if (layer === 'countup') textSpan.textContent = '● 正計時展示中';
-          else if (layer === 'countdown') textSpan.textContent = '● 倒數計時展示中';
-        }
+        btn.className = 'btn btn-sm btn-primary btn-active select-none btn-show-layer pointer-events-none cursor-default shadow-sm';
+        btn.setAttribute('tabindex', '-1');
+        btn.setAttribute('aria-disabled', 'true');
       } else {
-        btn.className = 'btn btn-sm btn-outline btn-ghost select-none btn-show-layer';
-        if (textSpan) {
-          if (layer === 'time') textSpan.textContent = '切換顯示目前時間';
-          else if (layer === 'countup') textSpan.textContent = '切換顯示正計時';
-          else if (layer === 'countdown') textSpan.textContent = '切換顯示倒數';
-        }
+        btn.className = 'btn btn-sm btn-outline btn-ghost select-none btn-show-layer pointer-events-auto cursor-pointer';
+        btn.removeAttribute('tabindex');
+        btn.removeAttribute('aria-disabled');
       }
     });
 
@@ -434,7 +458,6 @@
         card.classList.toggle('is-active-layer', isCurrent);
         const liveBadge = card.querySelector('.live-indicator');
         if (liveBadge) {
-          // Requirement 7: Only show live badge on current card
           liveBadge.classList.toggle('hidden', !isCurrent);
         }
       }
@@ -456,7 +479,7 @@
       previewScreen.classList.add('no-fade');
     }
 
-    // 4. Update Preview Layers (Requirement 7: blackout only active when active === 'blackout')
+    // 4. Update Preview Layers
     prevLayerTime.classList.toggle('active', active === 'time');
     prevLayerCountup.classList.toggle('active', active === 'countup');
     prevLayerCountdown.classList.toggle('active', active === 'countdown');
@@ -467,18 +490,22 @@
       if (el) el.className = `preview-content mode-${iconMode}`;
     });
 
-    // Colon blink phase (500ms on / 500ms off)
-    const isColonPhaseVisible = Date.now() % 1000 < 500;
-
-    // Preview Layer: Time
+    // ------------------------------------------------------------------
+    // Layer: Time
+    // ------------------------------------------------------------------
     const now = new Date();
     const timeStr = TimerStore.formatTime(
       now,
       state.timeConfig.format24,
       state.timeConfig.showSeconds
     );
-    prevDigitsTime.innerHTML = formatDigitsHTML(timeStr, true, isColonPhaseVisible);
-    cardDigitsTime.innerHTML = formatDigitsHTML(timeStr, true, isColonPhaseVisible);
+    // Requirement 2: If hours present, do not blink colons!
+    const hasHoursInTime = timeStr.split(':').length === 3;
+    const isTimeColonVisible = now.getMilliseconds() < 500;
+    const shouldBlinkTime = !hasHoursInTime;
+
+    prevDigitsTime.innerHTML = formatDigitsHTML(timeStr, shouldBlinkTime, isTimeColonVisible);
+    cardDigitsTime.innerHTML = formatDigitsHTML(timeStr, shouldBlinkTime, isTimeColonVisible);
 
     if (state.timeConfig.showDate) {
       const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -488,14 +515,25 @@
       prevSublineDate.style.display = 'none';
     }
 
-    // Preview Layer: Count-up
+    // ------------------------------------------------------------------
+    // Layer: Count-up
+    // ------------------------------------------------------------------
     const cuRunning = state.countup.status === 'running';
     const cuPaused = state.countup.status === 'paused';
-    const cuStr = TimerStore.formatHMS(state.countup.elapsedMs);
-    prevDigitsCountup.innerHTML = formatDigitsHTML(cuStr, cuRunning, isColonPhaseVisible);
-    cardDigitsCountup.innerHTML = formatDigitsHTML(cuStr, cuRunning, isColonPhaseVisible);
+    // Format HMS respecting allowHourRollover
+    const cuStr = TimerStore.formatHMS(state.countup.elapsedMs, { allowHourRollover: allowHour });
+    const hasHoursInCu = cuStr.split(':').length === 3;
 
-    // Requirement 12: Count-up Start / Pause mutual exclusive
+    // Requirement 1 & 2:
+    // Synchronize colon with exact second boundary (elapsedMs % 1000)
+    // When hours present, colon does not blink
+    const cuColonVisible = (state.countup.elapsedMs % 1000) < 500;
+    const cuShouldBlink = cuRunning && !hasHoursInCu;
+
+    prevDigitsCountup.innerHTML = formatDigitsHTML(cuStr, cuShouldBlink, cuColonVisible);
+    cardDigitsCountup.innerHTML = formatDigitsHTML(cuStr, cuShouldBlink, cuColonVisible);
+
+    // Mutual exclusive start/pause buttons
     if (cuRunning) {
       btnCountupStart.classList.add('hidden');
       btnCountupPause.classList.remove('hidden');
@@ -509,31 +547,42 @@
       statusCountup.textContent = cuPaused ? '已暫停' : '待命';
     }
 
-    // Preview Layer: Countdown & Overtime
+    // ------------------------------------------------------------------
+    // Layer: Countdown & Overtime
+    // ------------------------------------------------------------------
     const cd = state.countdown;
     const cdRunning = cd.status === 'running' || cd.status === 'overtime';
     const cdPaused = cd.status === 'paused';
+    let cdStr = '';
+    let cdColonVisible = true;
 
     if (cd.status === 'overtime') {
       const prefix = state.displaySettings?.overtimePrefix || '+';
-      const cdStr = `${prefix}${TimerStore.formatHMS(cd.overtimeMs)}`;
-      prevDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
-      cardDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
+      cdStr = `${prefix}${TimerStore.formatHMS(cd.overtimeMs, { allowHourRollover: allowHour })}`;
+      cdColonVisible = (cd.overtimeMs % 1000) < 500;
+
       prevDigitsCountdown.classList.add('overtime');
       cardDigitsCountdown.classList.add('overtime');
       statusCountdown.className = 'badge badge-error text-xs text-white';
       statusCountdown.textContent = '超時中';
     } else {
-      const cdStr = TimerStore.formatHMS(cd.remainingMs);
-      prevDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
-      cardDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
+      cdStr = TimerStore.formatHMS(cd.remainingMs, { allowHourRollover: allowHour });
+      // Synchronize countdown colon with second tick boundary
+      cdColonVisible = ((1000 - (cd.remainingMs % 1000)) % 1000) < 500;
+
       prevDigitsCountdown.classList.remove('overtime');
       cardDigitsCountdown.classList.remove('overtime');
       statusCountdown.className = cdRunning ? 'badge badge-info badge-outline text-xs' : cdPaused ? 'badge badge-warning badge-outline text-xs' : 'badge badge-neutral text-xs';
       statusCountdown.textContent = cdRunning ? '倒數中' : cdPaused ? '已暫停' : '待命';
     }
 
-    // Requirement 12: Countdown Start / Pause mutual exclusive
+    const hasHoursInCd = cdStr.split(':').length === 3;
+    const cdShouldBlink = cdRunning && !hasHoursInCd;
+
+    prevDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdShouldBlink, cdColonVisible);
+    cardDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdShouldBlink, cdColonVisible);
+
+    // Mutual exclusive start/pause buttons
     if (cdRunning) {
       btnCountdownStart.classList.add('hidden');
       btnCountdownPause.classList.remove('hidden');
@@ -543,10 +592,10 @@
       textCountdownStart.textContent = cdPaused ? '繼續倒數' : '開始倒數';
     }
 
-    // 5. Update Preview Icons Queue (Requirement 11)
+    // 5. Update Preview Icons Queue
     renderPreviewIcons(state, iconMode);
 
-    // 6. Render Bell Alert Rules (Requirement 13)
+    // 6. Render Bell Alert Rules
     renderBellRules(state.bellRules);
 
     // 7. Update Blackout Button text
@@ -564,7 +613,6 @@
     const now = Date.now();
     const activeLayer = state.activeLayer;
 
-    // Filter icons for active layer only (prevents paused leak from other layer)
     const validIcons = (state.icons || []).filter(
       (i) => i.layer === activeLayer && (i.persistent || i.expiresAt > now)
     );
