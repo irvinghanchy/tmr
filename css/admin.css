@@ -1,12 +1,16 @@
 /* Google Fonts: Roboto Flex & Material Symbols Rounded */
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:XTRA,wght@323..603,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght,XOPQ,XTRA,YOPQ,YTDE,YTFI,YTLC,YTUC@8..144,100..1000,27..175,468,79,-203,738,514,712&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..500,0,0');
 
-/* Roboto Flex: Weight 500, Counter Width (XTRA) 468, Tabular Figures */
-.clock-font, .tabular-nums {
+/* Roboto Flex Custom Tuning:
+   Optical Size: Auto, Slant: 0, Width: 100, Weight: 400,
+   Thick Stroke (XOPQ): 96, Counter Width (XTRA): 367, Thin Stroke (YOPQ): 79,
+   Descender Depth (YTDE): -203, Figure Height (YTFI): 738, Lowercase Height (YTLC): 514, Uppercase Height (YTUC): 712 */
+.clock-font, .tabular-nums, .preview-digits, .card-timer-display {
   font-family: 'Roboto Flex', monospace, sans-serif;
-  font-weight: 500;
-  font-variation-settings: 'wght' 500, 'XTRA' 468;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-variation-settings: 'slnt' 0, 'wdth' 100, 'wght' 400, 'XOPQ' 96, 'XTRA' 367, 'YOPQ' 79, 'YTDE' -203, 'YTFI' 738, 'YTLC' 514, 'YTUC' 712;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
@@ -136,18 +140,74 @@
   display: none !important;
 }
 
+@keyframes prevM3eEnterVertical {
+  0% { opacity: 0; transform: scale(0.65) translateY(-4px); }
+  65% { opacity: 1; transform: scale(1.06) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes prevM3eExitVertical {
+  0% { opacity: 1; transform: scale(1) translateY(0); max-height: 2.5rem; }
+  100% { opacity: 0; transform: scale(0.65) translateY(-4px); max-height: 0; margin-bottom: -0.35rem; }
+}
+
+@keyframes prevM3eEnterHorizontal {
+  0% { opacity: 0; transform: scale(0.65) translateX(-4px); }
+  65% { opacity: 1; transform: scale(1.06) translateX(0); }
+  100% { opacity: 1; transform: scale(1) translateX(0); }
+}
+
+@keyframes prevM3eExitHorizontal {
+  0% { opacity: 1; transform: scale(1) translateX(0); max-width: 2.5rem; }
+  100% { opacity: 0; transform: scale(0.65) translateX(-4px); max-width: 0; margin-right: -0.4rem; }
+}
+
 .preview-icon-item {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
   font-size: clamp(1.6rem, 3.4vw, 2.4rem);
-  transition: all 250ms ease;
+  width: clamp(1.6rem, 3.4vw, 2.4rem);
+  height: clamp(1.6rem, 3.4vw, 2.4rem);
+  max-height: clamp(1.6rem, 3.4vw, 2.4rem);
+  animation: prevM3eEnterVertical 280ms cubic-bezier(0.05, 0.7, 0.1, 1.0) both;
+  transition: all 220ms ease;
   user-select: none;
+  box-sizing: border-box;
+}
+
+.preview-icon-item.leaving {
+  animation: prevM3eExitVertical 200ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards !important;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .preview-content.mode-bottom .preview-icon-item {
   font-size: clamp(1rem, 2vw, 1.4rem);
+  width: clamp(1rem, 2vw, 1.4rem);
+  height: clamp(1rem, 2vw, 1.4rem);
+  max-width: clamp(1rem, 2vw, 1.4rem);
+  max-height: clamp(1rem, 2vw, 1.4rem);
+  animation: prevM3eEnterHorizontal 280ms cubic-bezier(0.05, 0.7, 0.1, 1.0) both;
+}
+
+.preview-content.mode-bottom .preview-icon-item.leaving {
+  animation: prevM3eExitHorizontal 200ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards !important;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Force Material Symbol glyph to match parent size, overriding Google Fonts 24px default! */
+.preview-icon-item .material-symbols-rounded,
+.preview-icon-slot .material-symbols-rounded {
+  font-size: inherit !important;
+  width: 1em !important;
+  height: 1em !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .preview-icon-item.color-gray { color: #9ca3af; }
@@ -157,11 +217,6 @@
 .preview-icon-item.color-yellow { color: #facc15; }
 
 .preview-digits {
-  font-family: 'Roboto Flex', sans-serif;
-  font-weight: 500;
-  font-variation-settings: 'wght' 500, 'XTRA' 468;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
   font-size: clamp(1.8rem, 5vw, 3.5rem);
   line-height: 1;
   color: #ffffff;

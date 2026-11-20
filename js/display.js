@@ -170,7 +170,10 @@
   function renderIcons(state, iconMode) {
     if (iconMode === 'none' || state.activeLayer === 'blackout') {
       [iconTime, iconCountup, iconCountdown].forEach((slot) => {
-        if (slot) slot.innerHTML = '';
+        if (slot) {
+          slot.innerHTML = '';
+          delete slot.dataset.lastIconKey;
+        }
       });
       return;
     }
@@ -189,19 +192,50 @@
     else if (activeLayer === 'countdown') activeSlot = iconCountdown;
 
     [iconTime, iconCountup, iconCountdown].forEach((slot) => {
-      if (slot !== activeSlot && slot) slot.innerHTML = '';
+      if (slot !== activeSlot && slot) {
+        slot.innerHTML = '';
+        delete slot.dataset.lastIconKey;
+      }
     });
 
     if (!activeSlot) return;
 
-    const html = validIcons
-      .map(
-        (i) =>
-          `<span class="icon-item color-${i.color || 'gray'} select-none" data-icon-id="${i.id}"><span class="material-symbols-rounded select-none">${i.name}</span></span>`
-      )
-      .join('');
+    // Only reconcile DOM if the icon list changed
+    const currentKey = activeLayer + ':' + validIcons.map((i) => `${i.id}_${i.name}_${i.color}`).join('|');
+    if (currentKey === activeSlot.dataset.lastIconKey) {
+      return;
+    }
+    activeSlot.dataset.lastIconKey = currentKey;
 
-    activeSlot.innerHTML = html;
+    const existingElements = Array.from(activeSlot.querySelectorAll('.icon-item:not(.leaving)'));
+    const validIds = new Set(validIcons.map((i) => i.id));
+
+    // 1. Mark expired/removed icons as .leaving so M3E exit animation plays before deletion
+    existingElements.forEach((el) => {
+      const id = el.dataset.iconId;
+      if (!validIds.has(id)) {
+        el.classList.add('leaving');
+        setTimeout(() => {
+          if (el.parentNode) {
+            el.remove();
+          }
+        }, 220);
+      }
+    });
+
+    // 2. Add new icons or keep existing in order
+    validIcons.forEach((icon) => {
+      let el = activeSlot.querySelector(`[data-icon-id="${icon.id}"]`);
+      if (!el) {
+        el = document.createElement('span');
+        el.className = `icon-item color-${icon.color || 'gray'} select-none`;
+        el.dataset.iconId = icon.id;
+        el.innerHTML = `<span class="material-symbols-rounded select-none">${icon.name}</span>`;
+        activeSlot.appendChild(el);
+      } else if (el.classList.contains('leaving')) {
+        el.classList.remove('leaving');
+      }
+    });
   }
 
   // Animation frame loop for continuous sub-second accuracy & colon blinking

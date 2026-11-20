@@ -1,5 +1,5 @@
 /* Google Fonts: Roboto Flex & Material Symbols Rounded */
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:XTRA,wght@323..603,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght,XOPQ,XTRA,YOPQ,YTDE,YTFI,YTLC,YTUC@8..144,100..1000,27..175,468,79,-203,738,514,712&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..500,0,0');
 
 :root {
@@ -33,11 +33,15 @@ html, body {
   cursor: default;
 }
 
-/* Tabular figures & Roboto Flex: Weight 500, Counter Width (XTRA) 468 */
+/* Tabular figures & Roboto Flex Custom Tuning:
+   Optical Size: Auto, Slant: 0, Width: 100, Weight: 400,
+   Thick Stroke (XOPQ): 96, Counter Width (XTRA): 367, Thin Stroke (YOPQ): 79,
+   Descender Depth (YTDE): -203, Figure Height (YTFI): 738, Lowercase Height (YTLC): 514, Uppercase Height (YTUC): 712 */
 .clock-digits, .tabular-nums {
   font-family: 'Roboto Flex', sans-serif;
-  font-weight: 500;
-  font-variation-settings: 'wght' 500, 'XTRA' 468;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-variation-settings: 'slnt' 0, 'wdth' 100, 'wght' 400, 'XOPQ' 96, 'XTRA' 367, 'YOPQ' 79, 'YTDE' -203, 'YTFI' 738, 'YTLC' 514, 'YTUC' 712;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
@@ -94,7 +98,7 @@ html, body {
   transition: none !important;
 }
 
-/* Blackout layer: completely hidden unless active (Requirement 7) */
+/* Blackout layer */
 #layer-blackout {
   background-color: #000000;
   z-index: 50;
@@ -134,7 +138,7 @@ html, body {
 
 .clock-content.mode-side .icon-slot {
   display: flex;
-  flex-direction: column; /* Requirement 11: Top-to-bottom */
+  flex-direction: column; /* Multi-icons stack top-to-bottom */
   align-items: center;
   justify-content: flex-start;
   gap: clamp(0.5rem, 1vh, 1.25rem);
@@ -157,7 +161,7 @@ html, body {
 
 .clock-content.mode-bottom .icon-slot {
   display: flex;
-  flex-direction: row; /* Requirement 11: Left-to-right */
+  flex-direction: row; /* Multi-icons stack left-to-right */
   align-items: center;
   justify-content: center;
   gap: clamp(0.6rem, 1.5vw, 1.5rem);
@@ -172,20 +176,123 @@ html, body {
   display: none !important;
 }
 
-/* Dynamic Multi-Icon Items (Requirement 11) */
+/* ------------------------------------------------------------- */
+/* M3 Expressive Motion (M3E) Animations for Icons (Requirement 1) */
+/* ------------------------------------------------------------- */
+@keyframes m3eEnterVertical {
+  0% {
+    opacity: 0;
+    transform: scale(0.65) translateY(-8px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.06) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes m3eExitVertical {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    max-height: min(11.5vw, 18vh);
+    margin-bottom: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.65) translateY(-8px);
+    max-height: 0;
+    margin-bottom: -1rem;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+@keyframes m3eEnterHorizontal {
+  0% {
+    opacity: 0;
+    transform: scale(0.65) translateX(-8px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.06) translateX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
+}
+
+@keyframes m3eExitHorizontal {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+    max-width: min(6vw, 9vh);
+    margin-right: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.65) translateX(-8px);
+    max-width: 0;
+    margin-right: -0.6rem;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* Dynamic Multi-Icon Items: Explicit dimensions & inherit font size (Requirement 2) */
 .icon-item {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  opacity: 1;
-  transform: scale(1);
-  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: min(11.5vw, 18vh); /* 1/2 of clock digits size in side mode */
+  font-size: min(11.5vw, 18vh) !important; /* Exactly 1/2 of clock digits size */
+  width: min(11.5vw, 18vh);
+  height: min(11.5vw, 18vh);
+  max-height: min(11.5vw, 18vh);
+  animation: m3eEnterVertical 280ms cubic-bezier(0.05, 0.7, 0.1, 1.0) both;
+  will-change: transform, opacity, max-height;
+  transition: transform 250ms cubic-bezier(0.2, 0, 0, 1),
+              opacity 200ms cubic-bezier(0.2, 0, 0, 1),
+              max-height 250ms cubic-bezier(0.2, 0, 0, 1),
+              margin 250ms cubic-bezier(0.2, 0, 0, 1);
+  box-sizing: border-box;
+}
+
+.icon-item.leaving {
+  animation: m3eExitVertical 200ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards !important;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .clock-content.mode-bottom .icon-item {
-  font-size: min(6vw, 9vh); /* Mini in bottom mode */
+  font-size: min(6vw, 9vh) !important;
+  width: min(6vw, 9vh);
+  height: min(6vw, 9vh);
+  max-width: min(6vw, 9vh);
+  max-height: min(6vw, 9vh);
+  animation: m3eEnterHorizontal 280ms cubic-bezier(0.05, 0.7, 0.1, 1.0) both;
+}
+
+.clock-content.mode-bottom .icon-item.leaving {
+  animation: m3eExitHorizontal 200ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards !important;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Force Material Symbol glyph to match parent size, overriding Google Fonts 24px default! */
+.icon-item .material-symbols-rounded,
+.icon-slot .material-symbols-rounded {
+  font-size: inherit !important;
+  width: 1em !important;
+  height: 1em !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Icon Colors */
@@ -212,6 +319,9 @@ html, body {
 .icon-item.color-yellow {
   color: var(--icon-yellow);
   filter: drop-shadow(0 0 24px rgba(250, 204, 21, 0.7));
+}
+
+.icon-item.color-yellow .material-symbols-rounded {
   animation: bellRingAnim 0.7s ease-in-out infinite alternate;
 }
 
