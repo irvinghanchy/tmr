@@ -1,34 +1,51 @@
 /**
- * TMR Admin Console Master Script
- * Coordinates preview rendering, state mutations, audio alerts, and UI event binding.
+ * TMR Admin Console Master Script (v3.1)
+ * Powered by DaisyUI + Tailwind CSS, with real-time multi-layer preview crossfade.
  */
 
 (function () {
   const store = new TimerStore(true); // Master mode
 
-  // DOM Elements - Header
-  const connPill = document.getElementById('conn-pill');
+  // Header Elements
+  const connBadge = document.getElementById('conn-badge');
+  const connDot = document.getElementById('conn-dot');
   const connText = document.getElementById('conn-text');
   const btnToggleMute = document.getElementById('btn-toggle-mute');
   const iconMuteState = document.getElementById('icon-mute-state');
   const btnTestChime = document.getElementById('btn-test-chime');
-  const btnOpenGuide = document.getElementById('btn-open-guide');
 
-  // DOM Elements - Preview & Switcher
+  // Preview & Master Layer Controls
   const previewScreen = document.getElementById('preview-screen');
-  const previewContent = document.getElementById('preview-content');
-  const previewDigits = document.getElementById('preview-digits');
-  const previewSubline = document.getElementById('preview-subline');
-  const previewIconSlot = document.getElementById('preview-icon-slot');
-  const previewIconSymbol = document.getElementById('preview-icon-symbol');
+  const prevLayerTime = document.getElementById('preview-layer-time');
+  const prevLayerCountup = document.getElementById('preview-layer-countup');
+  const prevLayerCountdown = document.getElementById('preview-layer-countdown');
+  const prevLayerBlackout = document.getElementById('preview-layer-blackout');
+
+  const prevContentTime = document.getElementById('prev-content-time');
+  const prevContentCountup = document.getElementById('prev-content-countup');
+  const prevContentCountdown = document.getElementById('prev-content-countdown');
+
+  const prevDigitsTime = document.getElementById('prev-digits-time');
+  const prevSublineDate = document.getElementById('prev-subline-date');
+  const prevDigitsCountup = document.getElementById('prev-digits-countup');
+  const prevDigitsCountdown = document.getElementById('prev-digits-countdown');
+
+  const prevIconTime = document.getElementById('prev-icon-time');
+  const prevIconCountup = document.getElementById('prev-icon-countup');
+  const prevIconCountdown = document.getElementById('prev-icon-countdown');
+
+  const prevSymbolTime = document.getElementById('prev-symbol-time');
+  const prevSymbolCountup = document.getElementById('prev-symbol-countup');
+  const prevSymbolCountdown = document.getElementById('prev-symbol-countdown');
+
   const previewActiveLabel = document.getElementById('preview-active-label');
   const btnOpenDisplay = document.getElementById('btn-open-display');
-  const layerTabs = document.querySelectorAll('.btn-layer-tab');
+  const activeLayerBtns = document.querySelectorAll('.active-layer-btn');
   const toggleFadeAnim = document.getElementById('toggle-fade-anim');
   const selectFadeDuration = document.getElementById('select-fade-duration');
-  const selectIconPos = document.getElementById('select-icon-pos');
+  const selectIconMode = document.getElementById('select-icon-mode');
 
-  // DOM Elements - Mode (a) Time
+  // Mode 1 (Time)
   const cardModeTime = document.getElementById('card-mode-time');
   const cardDigitsTime = document.getElementById('card-digits-time');
   const checkTime24h = document.getElementById('check-time-24h');
@@ -36,16 +53,17 @@
   const checkTimeDate = document.getElementById('check-time-date');
   const btnShowTime = document.getElementById('btn-show-time');
 
-  // DOM Elements - Mode (b) Count-up
+  // Mode 2 (Count-up)
   const cardModeCountup = document.getElementById('card-mode-countup');
   const cardDigitsCountup = document.getElementById('card-digits-countup');
   const statusCountup = document.getElementById('status-countup');
   const btnCountupStart = document.getElementById('btn-countup-start');
+  const textCountupStart = document.getElementById('text-countup-start');
   const btnCountupPause = document.getElementById('btn-countup-pause');
   const btnCountupReset = document.getElementById('btn-countup-reset');
   const btnShowCountup = document.getElementById('btn-show-countup');
 
-  // DOM Elements - Mode (c) Countdown
+  // Mode 3 (Countdown)
   const cardModeCountdown = document.getElementById('card-mode-countdown');
   const cardDigitsCountdown = document.getElementById('card-digits-countdown');
   const statusCountdown = document.getElementById('status-countdown');
@@ -55,6 +73,7 @@
   const inputCustomS = document.getElementById('input-custom-s');
   const btnApplyCustomTime = document.getElementById('btn-apply-custom-time');
   const btnCountdownStart = document.getElementById('btn-countdown-start');
+  const textCountdownStart = document.getElementById('text-countdown-start');
   const btnCountdownPause = document.getElementById('btn-countdown-pause');
   const btnCountdownReset = document.getElementById('btn-countdown-reset');
   const btnShowCountdown = document.getElementById('btn-show-countdown');
@@ -63,37 +82,31 @@
   const btnAdjP30 = document.getElementById('btn-adj-p30');
   const btnAdjM30 = document.getElementById('btn-adj-m30');
 
-  // Bell Alert rules & audio settings
+  // Bell alerts & Sound
   const bellRulesList = document.getElementById('bell-rules-list');
   const btnAddBellRule = document.getElementById('btn-add-bell-rule');
   const selectBellSound = document.getElementById('select-bell-sound');
   const sliderVolume = document.getElementById('slider-volume');
 
-  // DOM Elements - Mode (d) Blackout
+  // Mode 4 (Blackout)
   const cardModeBlackout = document.getElementById('card-mode-blackout');
   const btnToggleBlackout = document.getElementById('btn-toggle-blackout');
+  const textBlackoutBtn = document.getElementById('text-blackout-btn');
 
-  // Modals
+  // Modal: Add Bell
   const modalAddBell = document.getElementById('modal-add-bell');
-  const btnCloseBellModal = document.getElementById('btn-close-bell-modal');
-  const btnCancelBellModal = document.getElementById('btn-cancel-bell-modal');
   const formAddBell = document.getElementById('form-add-bell');
+  const btnCancelBellModal = document.getElementById('btn-cancel-bell-modal');
   const ruleInputType = document.getElementById('rule-input-type');
   const ruleTimeGroup = document.getElementById('rule-time-group');
   const ruleInputM = document.getElementById('rule-input-m');
   const ruleInputS = document.getElementById('rule-input-s');
   const ruleInputRings = document.getElementById('rule-input-rings');
-  const ruleInputLabel = document.getElementById('rule-input-label');
 
-  const modalGuide = document.getElementById('modal-guide');
-  const btnCloseGuideModal = document.getElementById('btn-close-guide-modal');
-  const btnConfirmGuide = document.getElementById('btn-confirm-guide');
-
-  // Client connection tracker
+  // Track connected display windows
   let lastClientPingTime = 0;
   let displayWindowRef = null;
 
-  // Listen for client pings on channel
   if (store.channel) {
     store.channel.addEventListener('message', (e) => {
       if (e.data && e.data.type === 'CLIENT_PING') {
@@ -104,20 +117,21 @@
   }
 
   function updateConnectionStatus() {
-    const isAlive = (Date.now() - lastClientPingTime < 6000) || (displayWindowRef && !displayWindowRef.closed);
+    const isAlive = (Date.now() - lastClientPingTime < 5000) || (displayWindowRef && !displayWindowRef.closed);
     if (isAlive) {
-      connPill.classList.add('connected');
+      connDot.className = 'w-2 h-2 rounded-full bg-success shadow-[0_0_8px_#22c55e]';
+      connBadge.className = 'badge badge-outline border-success/40 text-success gap-1.5 py-3 px-3 text-xs font-medium';
       connText.textContent = '展示視窗已連線';
     } else {
-      connPill.classList.remove('connected');
-      connText.textContent = '未開啟展示視窗';
+      connDot.className = 'w-2 h-2 rounded-full bg-gray-500';
+      connBadge.className = 'badge badge-outline gap-1.5 py-3 px-3 text-xs font-medium';
+      connText.textContent = '未連線展示視窗';
     }
   }
   setInterval(updateConnectionStatus, 2000);
 
   // Open presentation window
   btnOpenDisplay.addEventListener('click', () => {
-    // Open in separate window
     const w = 1280;
     const h = 720;
     const left = (screen.width - w) / 2;
@@ -137,15 +151,15 @@
     }
   });
 
-  // Layer switching tabs
-  layerTabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      const layer = tab.dataset.layer;
+  // Layer switching buttons
+  activeLayerBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const layer = btn.dataset.layer;
       store.setActiveLayer(layer);
     });
   });
 
-  // Fade animation controls
+  // Transition settings
   toggleFadeAnim.addEventListener('change', () => {
     store.setFadeAnimation(toggleFadeAnim.checked, parseInt(selectFadeDuration.value));
   });
@@ -154,14 +168,14 @@
     store.setFadeAnimation(toggleFadeAnim.checked, parseInt(selectFadeDuration.value));
   });
 
-  // Icon position
-  selectIconPos.addEventListener('change', () => {
+  // Icon display mode
+  selectIconMode.addEventListener('change', () => {
     store.update((state) => {
-      state.displaySettings.iconPosition = selectIconPos.value;
+      state.displaySettings.iconMode = selectIconMode.value;
     });
   });
 
-  // Audio settings
+  // Audio Controls
   selectBellSound.addEventListener('change', () => {
     store.update((state) => {
       state.soundSettings.sound = selectBellSound.value;
@@ -192,7 +206,8 @@
   function updateMuteUI(muted) {
     iconMuteState.textContent = muted ? 'volume_off' : 'volume_up';
     btnToggleMute.title = muted ? '取消靜音 (M)' : '靜音鈴聲 (M)';
-    btnToggleMute.style.color = muted ? 'var(--accent-red)' : '';
+    if (muted) btnToggleMute.classList.add('text-error');
+    else btnToggleMute.classList.remove('text-error');
   }
 
   btnTestChime.addEventListener('click', () => {
@@ -201,7 +216,7 @@
     }
   });
 
-  // Mode (a) Time controls
+  // Mode 1: Time
   checkTime24h.addEventListener('change', () => {
     store.update((state) => {
       state.timeConfig.format24 = checkTime24h.checked;
@@ -224,9 +239,9 @@
     store.setActiveLayer('time');
   });
 
-  // Mode (b) Count-up controls
+  // Mode 2: Count-up (Requirement 4: Auto-switch layer on start, mutually exclusive start/pause)
   btnCountupStart.addEventListener('click', () => {
-    store.startCountup();
+    store.startCountup(); // automatically switches layer to countup
   });
 
   btnCountupPause.addEventListener('click', () => {
@@ -241,15 +256,18 @@
     store.setActiveLayer('countup');
   });
 
-  // Mode (c) Countdown controls
+  // Mode 3: Countdown (Requirement 4: Auto-switch layer on start, mutually exclusive start/pause)
   presetChips.forEach((chip) => {
     chip.addEventListener('click', () => {
-      presetChips.forEach((c) => c.classList.remove('active'));
-      chip.classList.add('active');
+      presetChips.forEach((c) => {
+        c.classList.remove('btn-primary');
+        c.classList.add('btn-outline');
+      });
+      chip.classList.remove('btn-outline');
+      chip.classList.add('btn-primary');
       const sec = parseInt(chip.dataset.sec);
       store.setCountdownDuration(sec);
 
-      // sync custom inputs
       inputCustomH.value = Math.floor(sec / 3600);
       inputCustomM.value = Math.floor((sec % 3600) / 60);
       inputCustomS.value = sec % 60;
@@ -263,12 +281,15 @@
     const totalSec = h * 3600 + m * 60 + s;
     if (totalSec > 0) {
       store.setCountdownDuration(totalSec);
-      presetChips.forEach((c) => c.classList.remove('active'));
+      presetChips.forEach((c) => {
+        c.classList.remove('btn-primary');
+        c.classList.add('btn-outline');
+      });
     }
   });
 
   btnCountdownStart.addEventListener('click', () => {
-    store.startCountdown();
+    store.startCountdown(); // automatically switches layer to countdown
   });
 
   btnCountdownPause.addEventListener('click', () => {
@@ -288,7 +309,7 @@
   btnAdjP30.addEventListener('click', () => store.adjustCountdown(30));
   btnAdjM30.addEventListener('click', () => store.adjustCountdown(-30));
 
-  // Mode (d) Blackout
+  // Mode 4: Blackout
   btnToggleBlackout.addEventListener('click', () => {
     if (store.state.activeLayer === 'blackout') {
       store.setActiveLayer(store.state.previousLayer || 'time');
@@ -299,15 +320,12 @@
 
   // Bell Alert Modal handlers
   btnAddBellRule.addEventListener('click', () => {
-    modalAddBell.classList.add('open');
+    modalAddBell.showModal();
   });
 
-  function closeBellModal() {
-    modalAddBell.classList.remove('open');
-  }
-
-  btnCloseBellModal.addEventListener('click', closeBellModal);
-  btnCancelBellModal.addEventListener('click', closeBellModal);
+  btnCancelBellModal.addEventListener('click', () => {
+    modalAddBell.close();
+  });
 
   ruleInputType.addEventListener('change', () => {
     if (ruleInputType.value === 'at_zero') {
@@ -324,25 +342,21 @@
     const s = parseInt(ruleInputS.value) || 0;
     const timeSec = type === 'at_zero' ? 0 : m * 60 + s;
     const rings = parseInt(ruleInputRings.value) || 1;
-    let label = ruleInputLabel.value.trim();
 
-    if (!label) {
-      if (type === 'remaining') label = `剩餘 ${TimerStore.formatHMS(timeSec * 1000)}`;
-      else if (type === 'at_zero') label = `倒數歸零 00:00`;
-      else if (type === 'overtime') label = `超時 ${TimerStore.formatHMS(timeSec * 1000)}`;
-    }
-
-    store.addBellRule({ type, timeSec, rings, label });
+    store.addBellRule({ type, timeSec, rings });
     formAddBell.reset();
-    closeBellModal();
+    modalAddBell.close();
   });
 
-  // Guide Modal handlers
-  btnOpenGuide.addEventListener('click', () => modalGuide.classList.add('open'));
-  btnCloseGuideModal.addEventListener('click', () => modalGuide.classList.remove('open'));
-  btnConfirmGuide.addEventListener('click', () => modalGuide.classList.remove('open'));
+  /**
+   * Helper to format digits HTML with blinking colon
+   */
+  function formatDigitsHTML(str, shouldBlink, isVisible) {
+    const colonClass = shouldBlink && !isVisible ? 'digit-colon colon-hidden' : 'digit-colon';
+    return str.split(':').map((part) => `<span>${part}</span>`).join(`<span class="${colonClass}">:</span>`);
+  }
 
-  // Main UI State Subscription
+  // Subscribe to store state
   store.subscribe((state) => {
     renderAdmin(state);
   });
@@ -350,30 +364,39 @@
   function renderAdmin(state) {
     if (!state) return;
 
-    // 1. Sync controls
+    // 1. Controls sync
     toggleFadeAnim.checked = !!state.fadeAnimation;
     selectFadeDuration.value = String(state.fadeDurationMs || 400);
-    selectIconPos.value = state.displaySettings?.iconPosition || 'right';
+    selectIconMode.value = state.displaySettings?.iconMode || 'side';
     checkTime24h.checked = !!state.timeConfig.format24;
     checkTimeSeconds.checked = !!state.timeConfig.showSeconds;
     checkTimeDate.checked = !!state.timeConfig.showDate;
-    selectBellSound.value = state.soundSettings.sound || 'chime';
+    selectBellSound.value = state.soundSettings.sound || 'beep';
     sliderVolume.value = state.soundSettings.volume ?? 0.8;
     updateMuteUI(state.soundSettings.muted);
 
-    // 2. Layer tabs & mode cards active highlights
+    // 2. Active Layer buttons & card outlines
     const active = state.activeLayer;
-    layerTabs.forEach((tab) => {
-      tab.classList.toggle('active', tab.dataset.layer === active);
+    activeLayerBtns.forEach((btn) => {
+      const isActive = btn.dataset.layer === active;
+      if (isActive) {
+        btn.className = 'btn btn-sm btn-primary active-layer-btn';
+      } else {
+        btn.className = 'btn btn-sm btn-outline active-layer-btn';
+      }
     });
 
     [cardModeTime, cardModeCountup, cardModeCountdown, cardModeBlackout].forEach((card) => {
       if (card) {
-        card.classList.toggle('is-active-layer', card.dataset.layer === active);
+        const isCurrent = card.dataset.layer === active;
+        card.classList.toggle('is-active-layer', isCurrent);
+        const liveBadge = card.querySelector('.live-indicator');
+        if (liveBadge) {
+          liveBadge.classList.toggle('hidden', !isCurrent);
+        }
       }
     });
 
-    // Layer label in preview header
     const layerNames = {
       time: '目前時間',
       countup: '正計時',
@@ -382,150 +405,182 @@
     };
     previewActiveLabel.textContent = `舞臺目前：${layerNames[active] || active}`;
 
-    // 3. Preview Screen Rendering
-    const isIconLeft = state.displaySettings?.iconPosition === 'left';
-    if (isIconLeft) previewContent.classList.add('icon-left');
-    else previewContent.classList.remove('icon-left');
-
-    if (active === 'blackout') {
-      previewScreen.classList.add('blackout-active');
-      previewDigits.style.visibility = 'hidden';
-      previewSubline.style.visibility = 'hidden';
-      previewIconSlot.classList.remove('visible');
+    // 3. Fade Animation duration config
+    if (state.fadeAnimation) {
+      previewScreen.classList.remove('no-fade');
+      document.documentElement.style.setProperty('--fade-duration', `${state.fadeDurationMs || 400}ms`);
     } else {
-      previewScreen.classList.remove('blackout-active');
-      previewDigits.style.visibility = 'visible';
-
-      if (active === 'time') {
-        const now = new Date();
-        previewDigits.textContent = TimerStore.formatTime(
-          now,
-          state.timeConfig.format24,
-          state.timeConfig.showSeconds
-        );
-        previewDigits.classList.remove('overtime');
-
-        if (state.timeConfig.showDate) {
-          const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-          previewSubline.textContent = `${now.getMonth() + 1}月${now.getDate()}日 (週${weekdays[now.getDay()]})`;
-          previewSubline.style.visibility = 'visible';
-        } else {
-          previewSubline.style.visibility = 'hidden';
-        }
-      } else if (active === 'countup') {
-        previewDigits.textContent = TimerStore.formatHMS(state.countup.elapsedMs);
-        previewDigits.classList.remove('overtime');
-        previewSubline.style.visibility = 'hidden';
-      } else if (active === 'countdown') {
-        const cd = state.countdown;
-        if (cd.status === 'overtime') {
-          const prefix = state.displaySettings?.overtimePrefix || '+';
-          previewDigits.textContent = `${prefix}${TimerStore.formatHMS(cd.overtimeMs)}`;
-          previewDigits.classList.add('overtime');
-        } else {
-          previewDigits.textContent = TimerStore.formatHMS(cd.remainingMs);
-          previewDigits.classList.remove('overtime');
-        }
-        previewSubline.style.visibility = 'hidden';
-      }
-
-      // Preview Icon Slot
-      const iconData = state.icon;
-      const now = Date.now();
-      const isIconVisible =
-        iconData &&
-        iconData.name &&
-        (iconData.persistent || (iconData.expiresAt > 0 && now < iconData.expiresAt));
-
-      if (isIconVisible) {
-        previewIconSymbol.textContent = iconData.name;
-        previewIconSlot.className = `preview-icon-slot visible color-${iconData.color || 'white'}`;
-      } else {
-        previewIconSlot.classList.remove('visible');
-      }
+      previewScreen.classList.add('no-fade');
     }
 
-    // 4. Update Card A (Time)
+    // 4. Update Preview Layers (Real crossfade animation)
+    prevLayerTime.classList.toggle('active', active === 'time');
+    prevLayerCountup.classList.toggle('active', active === 'countup');
+    prevLayerCountdown.classList.toggle('active', active === 'countdown');
+    prevLayerBlackout.classList.toggle('active', active === 'blackout');
+
+    const iconMode = state.displaySettings?.iconMode || 'side';
+    [prevContentTime, prevContentCountup, prevContentCountdown].forEach((el) => {
+      if (el) el.className = `preview-content mode-${iconMode}`;
+    });
+
+    // Colon blink phase (500ms on / 500ms off)
+    const isColonPhaseVisible = Date.now() % 1000 < 500;
+
+    // Preview Layer: Time
     const now = new Date();
-    cardDigitsTime.textContent = TimerStore.formatTime(
+    const timeStr = TimerStore.formatTime(
       now,
       state.timeConfig.format24,
       state.timeConfig.showSeconds
     );
+    prevDigitsTime.innerHTML = formatDigitsHTML(timeStr, true, isColonPhaseVisible);
+    cardDigitsTime.innerHTML = formatDigitsHTML(timeStr, true, isColonPhaseVisible);
 
-    // 5. Update Card B (Count-up)
-    cardDigitsCountup.textContent = TimerStore.formatHMS(state.countup.elapsedMs);
-    const cuStatus = state.countup.status;
-    statusCountup.className = 'card-timer-status ' + (cuStatus === 'running' ? 'running' : cuStatus === 'paused' ? 'paused' : '');
-    statusCountup.textContent = cuStatus === 'running' ? '正計時中' : cuStatus === 'paused' ? '已暫停' : '待命';
-    btnCountupStart.innerHTML = cuStatus === 'paused'
-      ? '<span class="material-symbols-rounded">play_arrow</span><span>繼續計時</span>'
-      : '<span class="material-symbols-rounded">play_arrow</span><span>開始正計時</span>';
+    if (state.timeConfig.showDate) {
+      const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+      prevSublineDate.textContent = `${now.getMonth() + 1}月${now.getDate()}日 星期${weekdays[now.getDay()]}`;
+      prevSublineDate.style.display = 'block';
+    } else {
+      prevSublineDate.style.display = 'none';
+    }
 
-    // 6. Update Card C (Countdown)
+    // Preview Layer: Count-up
+    const cuRunning = state.countup.status === 'running';
+    const cuStr = TimerStore.formatHMS(state.countup.elapsedMs);
+    prevDigitsCountup.innerHTML = formatDigitsHTML(cuStr, cuRunning, isColonPhaseVisible);
+    cardDigitsCountup.innerHTML = formatDigitsHTML(cuStr, cuRunning, isColonPhaseVisible);
+
+    // Requirement 4: Count-up Start / Pause mutually exclusive
+    if (cuRunning) {
+      btnCountupStart.classList.add('hidden');
+      btnCountupPause.classList.remove('hidden');
+      statusCountup.className = 'badge badge-success badge-outline text-xs';
+      statusCountup.textContent = '正計時中';
+    } else {
+      btnCountupStart.classList.remove('hidden');
+      btnCountupPause.classList.add('hidden');
+      const isPaused = state.countup.status === 'paused';
+      textCountupStart.textContent = isPaused ? '繼續計時' : '開始正計時';
+      statusCountup.className = isPaused ? 'badge badge-warning badge-outline text-xs' : 'badge badge-neutral text-xs';
+      statusCountup.textContent = isPaused ? '已暫停' : '待命';
+    }
+
+    // Preview Layer: Countdown & Overtime
     const cd = state.countdown;
+    const cdRunning = cd.status === 'running' || cd.status === 'overtime';
     if (cd.status === 'overtime') {
       const prefix = state.displaySettings?.overtimePrefix || '+';
-      cardDigitsCountdown.textContent = `${prefix}${TimerStore.formatHMS(cd.overtimeMs)}`;
+      const cdStr = `${prefix}${TimerStore.formatHMS(cd.overtimeMs)}`;
+      prevDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
+      cardDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
+      prevDigitsCountdown.classList.add('overtime');
       cardDigitsCountdown.classList.add('overtime');
-      statusCountdown.className = 'card-timer-status overtime';
-      statusCountdown.textContent = '已超時 (正計時中)';
+      statusCountdown.className = 'badge badge-error text-xs text-white';
+      statusCountdown.textContent = '超時中';
     } else {
-      cardDigitsCountdown.textContent = TimerStore.formatHMS(cd.remainingMs);
+      const cdStr = TimerStore.formatHMS(cd.remainingMs);
+      prevDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
+      cardDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
+      prevDigitsCountdown.classList.remove('overtime');
       cardDigitsCountdown.classList.remove('overtime');
-      const cdStatus = cd.status;
-      statusCountdown.className = 'card-timer-status ' + (cdStatus === 'running' ? 'running' : cdStatus === 'paused' ? 'paused' : '');
-      statusCountdown.textContent = cdStatus === 'running' ? '倒數中' : cdStatus === 'paused' ? '已暫停' : '待命';
+      const isPaused = cd.status === 'paused';
+      statusCountdown.className = cdRunning ? 'badge badge-info badge-outline text-xs' : isPaused ? 'badge badge-warning badge-outline text-xs' : 'badge badge-neutral text-xs';
+      statusCountdown.textContent = cdRunning ? '倒數中' : isPaused ? '已暫停' : '待命';
     }
-    btnCountdownStart.innerHTML = cd.status === 'paused'
-      ? '<span class="material-symbols-rounded">play_arrow</span><span>繼續倒數</span>'
-      : '<span class="material-symbols-rounded">play_arrow</span><span>開始倒數</span>';
 
-    // 7. Render Bell Alert Rules
+    // Requirement 4: Countdown Start / Pause mutually exclusive
+    if (cdRunning) {
+      btnCountdownStart.classList.add('hidden');
+      btnCountdownPause.classList.remove('hidden');
+    } else {
+      btnCountdownStart.classList.remove('hidden');
+      btnCountdownPause.classList.add('hidden');
+      textCountdownStart.textContent = cd.status === 'paused' ? '繼續倒數' : '開始倒數';
+    }
+
+    // 5. Update Preview Icons
+    updatePreviewIcons(state, iconMode);
+
+    // 6. Render Bell Alert Rules (Only "何時響幾次", no remarks)
     renderBellRules(state.bellRules);
 
-    // 8. Update Card D (Blackout) button text
-    btnToggleBlackout.innerHTML = active === 'blackout'
-      ? '<span class="material-symbols-rounded">videocam</span><span>解除黑畫面 (恢復展示)</span>'
-      : '<span class="material-symbols-rounded">videocam_off</span><span>立即切換黑畫面</span>';
+    // 7. Update Blackout Button text
+    textBlackoutBtn.textContent = active === 'blackout' ? '解除黑畫面 (恢復展示)' : '立即切換黑畫面';
+  }
+
+  function updatePreviewIcons(state, iconMode) {
+    if (iconMode === 'none') {
+      [prevIconTime, prevIconCountup, prevIconCountdown].forEach((slot) => {
+        if (slot) slot.classList.remove('visible');
+      });
+      return;
+    }
+
+    const iconData = state.icon;
+    const now = Date.now();
+    const isVisible =
+      iconData &&
+      iconData.name &&
+      state.activeLayer !== 'blackout' &&
+      (iconData.persistent || (iconData.expiresAt > 0 && now < iconData.expiresAt));
+
+    let activeSlot = null;
+    let activeSymbol = null;
+
+    if (state.activeLayer === 'time') {
+      activeSlot = prevIconTime;
+      activeSymbol = prevSymbolTime;
+    } else if (state.activeLayer === 'countup') {
+      activeSlot = prevIconCountup;
+      activeSymbol = prevSymbolCountup;
+    } else if (state.activeLayer === 'countdown') {
+      activeSlot = prevIconCountdown;
+      activeSymbol = prevSymbolCountdown;
+    }
+
+    [prevIconTime, prevIconCountup, prevIconCountdown].forEach((slot) => {
+      if (slot !== activeSlot && slot) {
+        slot.classList.remove('visible', 'color-gray', 'color-green', 'color-orange', 'color-lightblue', 'color-yellow');
+      }
+    });
+
+    if (isVisible && activeSlot && activeSymbol) {
+      activeSymbol.textContent = iconData.name;
+      activeSlot.className = `preview-icon visible color-${iconData.color || 'gray'}`;
+    } else if (activeSlot) {
+      activeSlot.classList.remove('visible');
+    }
   }
 
   function renderBellRules(rules) {
     bellRulesList.innerHTML = '';
     if (!rules || rules.length === 0) {
-      bellRulesList.innerHTML = '<div style="font-size: 0.82rem; color: var(--text-muted); padding: 0.5rem 0;">尚未設定任何響鈴規則</div>';
+      bellRulesList.innerHTML = '<div class="text-xs text-base-content/50 py-1">尚未設定任何響鈴規則</div>';
       return;
     }
 
     rules.forEach((rule) => {
       const div = document.createElement('div');
-      div.className = 'bell-rule-item';
+      div.className = 'flex items-center justify-between bg-base-200 px-3 py-2 rounded text-xs';
 
-      let timeText = '';
-      if (rule.type === 'remaining') timeText = `剩餘 ${TimerStore.formatHMS(rule.timeSec * 1000)}`;
-      else if (rule.type === 'at_zero') timeText = `歸零 00:00`;
-      else if (rule.type === 'overtime') timeText = `超時 ${TimerStore.formatHMS(rule.timeSec * 1000)}`;
+      const ruleText = TimerStore.formatRuleText(rule);
 
       div.innerHTML = `
-        <div class="bell-rule-info">
-          <label class="switch" style="width: 34px; height: 18px;">
-            <input type="checkbox" ${rule.enabled ? 'checked' : ''} data-rule-toggle="${rule.id}">
-            <span class="slider" style="border-radius: 18px;"></span>
-          </label>
-          <span style="font-weight: 500;">${rule.label || timeText}</span>
-          <span class="bell-rule-ring-count">響 ${rule.rings} 聲</span>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" class="toggle toggle-primary toggle-xs" ${rule.enabled ? 'checked' : ''} data-rule-toggle="${rule.id}" />
+          <span class="font-medium text-white">${ruleText}</span>
         </div>
-        <div class="bell-rule-actions">
-          <button class="btn btn-sm btn-icon-only" data-rule-test="${rule.id}" title="試聽此規則響鈴">
-            <span class="material-symbols-rounded" style="font-size: 1.1rem;">volume_up</span>
+        <div class="flex items-center gap-1">
+          <button class="btn btn-ghost btn-circle btn-xs text-base-content/70 hover:text-white" data-rule-test="${rule.id}" title="試聽響鈴">
+            <span class="material-symbols-rounded text-sm">volume_up</span>
           </button>
-          <button class="btn btn-sm btn-icon-only" data-rule-delete="${rule.id}" title="刪除此規則" style="color: #f87171;">
-            <span class="material-symbols-rounded" style="font-size: 1.1rem;">delete</span>
+          <button class="btn btn-ghost btn-circle btn-xs text-error hover:bg-error/20" data-rule-delete="${rule.id}" title="刪除規則">
+            <span class="material-symbols-rounded text-sm">delete</span>
           </button>
         </div>
       `;
 
-      // Event listeners on dynamic item
       const toggle = div.querySelector(`[data-rule-toggle="${rule.id}"]`);
       toggle.addEventListener('change', () => {
         store.toggleBellRule(rule.id, toggle.checked);
@@ -549,9 +604,8 @@
 
   // Keyboard Shortcuts Listener
   window.addEventListener('keydown', (e) => {
-    // If inside an input field or modal, ignore shortcuts
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
-    if (modalAddBell.classList.contains('open') || modalGuide.classList.contains('open')) return;
+    if (modalAddBell.hasAttribute('open')) return;
 
     if (e.key === '1') {
       e.preventDefault();
@@ -589,21 +643,11 @@
     }
   });
 
-  // RAF ticker to update time digits
-  function adminTick() {
-    if (store.state.activeLayer === 'time') {
-      const now = new Date();
-      cardDigitsTime.textContent = TimerStore.formatTime(
-        now,
-        store.state.timeConfig.format24,
-        store.state.timeConfig.showSeconds
-      );
-      if (!previewScreen.classList.contains('blackout-active')) {
-        previewDigits.textContent = cardDigitsTime.textContent;
-      }
-    }
-    requestAnimationFrame(adminTick);
+  // RAF loop for live colon blinking and clock ticker
+  function adminAnimLoop() {
+    renderAdmin(store.state);
+    requestAnimationFrame(adminAnimLoop);
   }
-  requestAnimationFrame(adminTick);
+  requestAnimationFrame(adminAnimLoop);
 
 })();

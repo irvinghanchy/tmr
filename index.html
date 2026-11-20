@@ -1,405 +1,445 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TMR 舞臺時鐘控制台 | Stage Timer Studio</title>
 
-  <!-- Roboto Flex (Tabular Monospace Figures) & Material Symbols Rounded -->
+  <!-- Tailwind CSS & DaisyUI (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Roboto Flex (XTRA 468, wght 500) & Material Symbols Rounded -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:XTRA,wght@323..603,100..1000&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..500,0,0" rel="stylesheet">
 
   <link rel="stylesheet" href="./css/admin.css">
 </head>
-<body>
+<body class="bg-base-300 text-base-content min-h-screen flex flex-col font-sans">
 
-  <!-- App Header -->
-  <header class="app-header">
-    <div class="brand-wrapper">
-      <div class="brand-icon">
+  <!-- DaisyUI Navbar -->
+  <nav class="navbar bg-base-100 border-b border-base-300 px-4 sm:px-6 sticky top-0 z-50">
+    <div class="flex-1 items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md">
         <span class="material-symbols-rounded">timer</span>
       </div>
       <div>
-        <span class="brand-title">TMR 舞臺時鐘控制台</span>
-        <span class="brand-badge">Stage Studio</span>
+        <h1 class="text-base sm:text-lg font-bold tracking-tight">TMR 舞臺時鐘控制台</h1>
       </div>
     </div>
 
-    <div class="header-actions">
-      <!-- Sync Status Pill -->
-      <div class="connection-pill" id="conn-pill" title="展示視窗連線狀態">
-        <span class="status-dot"></span>
+    <div class="flex items-center gap-3">
+      <!-- Sync Status Badge -->
+      <div id="conn-badge" class="badge badge-outline gap-1.5 py-3 px-3 text-xs font-medium">
+        <span class="w-2 h-2 rounded-full bg-gray-500" id="conn-dot"></span>
         <span id="conn-text">未連線展示視窗</span>
       </div>
 
       <!-- Quick Audio Controls -->
-      <div style="display: flex; align-items: center; gap: 0.5rem;">
-        <button class="btn btn-sm btn-icon-only" id="btn-toggle-mute" title="靜音 / 開啟鈴聲 (M)">
+      <div class="flex items-center gap-1">
+        <button class="btn btn-ghost btn-circle btn-sm" id="btn-toggle-mute" title="靜音 / 開啟鈴聲 (M)">
           <span class="material-symbols-rounded" id="icon-mute-state">volume_up</span>
         </button>
-        <button class="btn btn-sm" id="btn-test-chime" title="播放測試鈴聲">
-          <span class="material-symbols-rounded">notifications</span>
-          <span>測試鈴聲</span>
+        <button class="btn btn-outline btn-sm gap-1" id="btn-test-chime" title="播放測試鈴聲">
+          <span class="material-symbols-rounded text-base">notifications</span>
+          <span class="hidden sm:inline">測試鈴聲</span>
         </button>
       </div>
-
-      <!-- Guide & Info Button -->
-      <button class="btn btn-sm" id="btn-open-guide">
-        <span class="material-symbols-rounded">help_outline</span>
-        <span>部署與說明</span>
-      </button>
     </div>
-  </header>
+  </nav>
 
-  <!-- Main Container -->
-  <div class="admin-container">
+  <!-- Main Grid Layout -->
+  <div class="max-w-7xl mx-auto p-4 sm:p-6 w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-    <!-- LEFT COLUMN: Preview & Layer Master Switcher -->
-    <aside class="preview-column">
+    <!-- LEFT COLUMN (5 Cols): Live Preview & Layer Master Switcher -->
+    <aside class="lg:col-span-5 flex flex-col gap-5 lg:sticky lg:top-20">
       
       <!-- Live Preview Card -->
-      <section class="card" aria-label="即時預覽">
-        <div class="card-header">
-          <div class="card-title-group">
-            <span class="material-symbols-rounded" style="color: #6366f1;">desktop_windows</span>
-            <h2 class="card-title">預覽畫面</h2>
-          </div>
-          <span class="card-badge" id="preview-active-label">目前圖層：目前時間</span>
-        </div>
-
-        <!-- 16:9 Screen Simulation -->
-        <div class="preview-screen-wrapper" id="preview-screen">
-          <div class="preview-clock-content" id="preview-content">
-            <div style="display: flex; flex-direction: column; align-items: center;">
-              <div class="preview-digits tabular-nums" id="preview-digits">00:00:00</div>
-              <div class="preview-subline" id="preview-subline"></div>
+      <section class="card bg-base-100 border border-base-300 shadow-xl">
+        <div class="card-body p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-rounded text-indigo-500">desktop_windows</span>
+              <h2 class="font-bold text-base">預覽畫面</h2>
             </div>
-            <div class="preview-icon-slot" id="preview-icon-slot">
-              <span class="material-symbols-rounded" id="preview-icon-symbol">watch</span>
+            <span class="badge badge-neutral text-xs" id="preview-active-label">目前圖層：目前時間</span>
+          </div>
+
+          <!-- 16:9 Screen Simulation with Real Layered Fade Transitions -->
+          <div class="preview-screen-box" id="preview-screen">
+            
+            <!-- Preview Layer: Time -->
+            <div class="preview-layer active" id="preview-layer-time">
+              <div class="preview-content mode-side" id="prev-content-time">
+                <div class="preview-spacer" aria-hidden="true"></div>
+                <div class="flex flex-col items-center">
+                  <div class="preview-digits tabular-nums" id="prev-digits-time">00:00</div>
+                  <div class="preview-subline" id="prev-subline-date" style="display: none;"></div>
+                </div>
+                <div class="preview-icon" id="prev-icon-time">
+                  <span class="material-symbols-rounded" id="prev-symbol-time">watch</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Preview Layer: Countup -->
+            <div class="preview-layer" id="preview-layer-countup">
+              <div class="preview-content mode-side" id="prev-content-countup">
+                <div class="preview-spacer" aria-hidden="true"></div>
+                <div class="flex flex-col items-center">
+                  <div class="preview-digits tabular-nums" id="prev-digits-countup">00:00</div>
+                </div>
+                <div class="preview-icon" id="prev-icon-countup">
+                  <span class="material-symbols-rounded" id="prev-symbol-countup">timer_arrow_up</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Preview Layer: Countdown -->
+            <div class="preview-layer" id="preview-layer-countdown">
+              <div class="preview-content mode-side" id="prev-content-countdown">
+                <div class="preview-spacer" aria-hidden="true"></div>
+                <div class="flex flex-col items-center">
+                  <div class="preview-digits tabular-nums" id="prev-digits-countdown">05:00</div>
+                </div>
+                <div class="preview-icon" id="prev-icon-countdown">
+                  <span class="material-symbols-rounded" id="prev-symbol-countdown">timer_arrow_down</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Preview Layer: Blackout -->
+            <div class="preview-layer bg-black" id="preview-layer-blackout">
+              <span class="text-xs text-gray-500 bg-black/60 px-2 py-1 rounded">黑畫面中</span>
+            </div>
+
+          </div>
+
+          <!-- Launch Display Window Button -->
+          <div class="mt-4">
+            <button class="btn btn-primary w-full gap-2 text-base font-semibold shadow-lg shadow-indigo-600/30" id="btn-open-display">
+              <span class="material-symbols-rounded">open_in_new</span>
+              <span>另開展示視窗（簡報模式）</span>
+            </button>
+          </div>
+
+          <!-- Master Layer Switcher -->
+          <div class="mt-4">
+            <div class="text-xs font-semibold text-base-content/70 mb-2">舞臺目前顯示圖層</div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="btn btn-sm btn-outline active-layer-btn" data-layer="time">
+                <span class="material-symbols-rounded text-base">schedule</span>
+                <span>目前時間 (1)</span>
+              </button>
+              <button class="btn btn-sm btn-outline active-layer-btn" data-layer="countup">
+                <span class="material-symbols-rounded text-base">timer</span>
+                <span>正計時 (2)</span>
+              </button>
+              <button class="btn btn-sm btn-outline active-layer-btn" data-layer="countdown">
+                <span class="material-symbols-rounded text-base">hourglass_empty</span>
+                <span>倒數計時 (3)</span>
+              </button>
+              <button class="btn btn-sm btn-outline active-layer-btn" data-layer="blackout">
+                <span class="material-symbols-rounded text-base">videocam_off</span>
+                <span>黑畫面 (B)</span>
+              </button>
             </div>
           </div>
-        </div>
 
-        <!-- Launch Display Window Button -->
-        <div style="margin-top: 1rem;">
-          <button class="btn-launch-display" id="btn-open-display" title="在新視窗獨立開啟展示畫面 (簡報時鐘)">
-            <span class="material-symbols-rounded">open_in_new</span>
-            <span>另開展示視窗（簡報模式）</span>
-          </button>
-        </div>
-
-        <!-- Layer Master Switcher -->
-        <div style="margin-top: 1.25rem;">
-          <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.4rem;">
-            舞臺目前顯示圖層 (Active Layer)
-          </div>
-          <div class="layer-switcher-grid">
-            <button class="btn-layer-tab active" data-layer="time">
-              <span class="material-symbols-rounded">schedule</span>
-              <span>目前時間 (1)</span>
-            </button>
-            <button class="btn-layer-tab" data-layer="countup">
-              <span class="material-symbols-rounded">timer</span>
-              <span>正計時 (2)</span>
-            </button>
-            <button class="btn-layer-tab" data-layer="countdown">
-              <span class="material-symbols-rounded">hourglass_empty</span>
-              <span>倒數計時 (3)</span>
-            </button>
-            <button class="btn-layer-tab" data-layer="blackout">
-              <span class="material-symbols-rounded">videocam_off</span>
-              <span>黑畫面 (B)</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Transition & Display Settings -->
-        <div class="transition-settings-bar">
-          <div style="display: flex; align-items: center; gap: 0.6rem;">
-            <label class="switch">
-              <input type="checkbox" id="toggle-fade-anim" checked>
-              <span class="slider"></span>
+          <!-- Transition & Icon Options -->
+          <div class="divider my-2"></div>
+          
+          <div class="flex items-center justify-between text-xs py-1">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="toggle-fade-anim" class="toggle toggle-primary toggle-sm" checked />
+              <span class="font-medium">淡入淡出轉場動畫</span>
             </label>
-            <span style="font-weight: 500;">淡入淡出轉場動畫</span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-base-content/60">轉場速度</span>
+              <select class="select select-bordered select-xs" id="select-fade-duration">
+                <option value="200">0.2 秒</option>
+                <option value="400" selected>0.4 秒</option>
+                <option value="800">0.8 秒</option>
+              </select>
+            </div>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 0.8rem; color: var(--text-muted);">速度</span>
-            <select class="custom-select" id="select-fade-duration" style="padding: 0.25rem 0.5rem;">
-              <option value="200">0.2 秒 (快)</option>
-              <option value="400" selected>0.4 秒 (標準)</option>
-              <option value="800">0.8 秒 (慢)</option>
+          <div class="flex items-center justify-between text-xs py-1 mt-1">
+            <span class="font-medium text-base-content/80">圖示顯示方式</span>
+            <select class="select select-bordered select-xs" id="select-icon-mode">
+              <option value="side" selected>側邊顯示（左右平衡）</option>
+              <option value="bottom">下方置中（迷你版）</option>
+              <option value="none">不顯示圖示</option>
             </select>
           </div>
-        </div>
 
-        <!-- Icon Settings -->
-        <div class="transition-settings-bar" style="margin-top: 0.5rem; padding-top: 0.5rem;">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span class="material-symbols-rounded" style="font-size: 1.1rem; color: var(--text-muted);">category</span>
-            <span style="font-size: 0.82rem; color: var(--text-secondary);">圖示位置</span>
-          </div>
-          <select class="custom-select" id="select-icon-pos" style="padding: 0.25rem 0.5rem;">
-            <option value="right" selected>時鐘右側</option>
-            <option value="left">時鐘左側</option>
-          </select>
         </div>
-
       </section>
 
-      <!-- Keyboard Shortcuts Card -->
-      <section class="card" aria-label="快捷鍵說明">
-        <div class="card-header" style="margin-bottom: 0.5rem;">
-          <div class="card-title-group">
-            <span class="material-symbols-rounded" style="color: #a5b4fc; font-size: 1.1rem;">keyboard</span>
-            <h3 style="font-size: 0.92rem; font-weight: 600;">鍵盤控制快捷鍵</h3>
+      <!-- Keyboard Shortcuts Card: Default Collapsed -->
+      <div class="collapse collapse-arrow bg-base-100 border border-base-300 shadow">
+        <input type="checkbox" id="collapse-shortcuts" /> <!-- Default unchecked = collapsed -->
+        <div class="collapse-title text-sm font-semibold flex items-center gap-2 py-3">
+          <span class="material-symbols-rounded text-base text-indigo-400">keyboard</span>
+          <span>鍵盤控制快捷鍵</span>
+        </div>
+        <div class="collapse-content text-xs">
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <div class="flex justify-between items-center bg-base-200 p-2 rounded">
+              <span>切換目前時間</span> <kbd class="kbd kbd-sm">1</kbd>
+            </div>
+            <div class="flex justify-between items-center bg-base-200 p-2 rounded">
+              <span>切換正計時</span> <kbd class="kbd kbd-sm">2</kbd>
+            </div>
+            <div class="flex justify-between items-center bg-base-200 p-2 rounded">
+              <span>切換倒數計時</span> <kbd class="kbd kbd-sm">3</kbd>
+            </div>
+            <div class="flex justify-between items-center bg-base-200 p-2 rounded">
+              <span>切換黑畫面</span> <kbd class="kbd kbd-sm">B</kbd>
+            </div>
+            <div class="flex justify-between items-center bg-base-200 p-2 rounded">
+              <span>開始 / 暫停</span> <kbd class="kbd kbd-sm">Space</kbd>
+            </div>
+            <div class="flex justify-between items-center bg-base-200 p-2 rounded">
+              <span>重設計時</span> <kbd class="kbd kbd-sm">R</kbd>
+            </div>
+            <div class="flex justify-between items-center bg-base-200 p-2 rounded">
+              <span>靜音切換</span> <kbd class="kbd kbd-sm">M</kbd>
+            </div>
+            <div class="flex justify-between items-center bg-base-200 p-2 rounded">
+              <span>展示全螢幕</span> <kbd class="kbd kbd-sm">F</kbd>
+            </div>
           </div>
         </div>
-        <div class="shortcut-list">
-          <div class="shortcut-item"><span>切換目前時間</span> <span class="kbd">1</span></div>
-          <div class="shortcut-item"><span>切換正計時</span> <span class="kbd">2</span></div>
-          <div class="shortcut-item"><span>切換倒數計時</span> <span class="kbd">3</span></div>
-          <div class="shortcut-item"><span>切換黑畫面</span> <span class="kbd">B</span></div>
-          <div class="shortcut-item"><span>開始 / 暫停</span> <span class="kbd">Space</span></div>
-          <div class="shortcut-item"><span>重設計時</span> <span class="kbd">R</span></div>
-          <div class="shortcut-item"><span>展示視窗全螢幕</span> <span class="kbd">F</span></div>
-          <div class="shortcut-item"><span>靜音切換</span> <span class="kbd">M</span></div>
-        </div>
-      </section>
+      </div>
 
     </aside>
 
-    <!-- RIGHT COLUMN: 4 Mode Operation Cards -->
-    <main class="controls-column">
+    <!-- RIGHT COLUMN (7 Cols): 4 Mode Operation Cards -->
+    <main class="lg:col-span-7 flex flex-col gap-5">
 
-      <!-- Card (a): 目前時間 Current Time -->
-      <article class="card mode-card is-active-layer" id="card-mode-time" data-layer="time">
-        <header class="card-header">
-          <div class="card-title-group">
-            <span class="material-symbols-rounded" style="color: #60a5fa;">schedule</span>
-            <h2 class="card-title">(a) 顯示目前時間</h2>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">預設值</span>
-          </div>
-          <span class="mode-badge-live">
-            <span class="status-dot" style="background-color: var(--accent-green);"></span>
-            正在舞臺展示中
-          </span>
-        </header>
-
-        <div class="card-timer-row">
-          <div class="card-timer-display tabular-nums" id="card-digits-time">00:00:00</div>
-          <div class="card-timer-status running">系統時間同步中</div>
-        </div>
-
-        <div style="display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center; margin-bottom: 1rem;">
-          <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.88rem; cursor: pointer;">
-            <input type="checkbox" id="check-time-24h" checked>
-            <span>24 小時制</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.88rem; cursor: pointer;">
-            <input type="checkbox" id="check-time-seconds" checked>
-            <span>顯示秒數</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.88rem; cursor: pointer;">
-            <input type="checkbox" id="check-time-date" checked>
-            <span>顯示日期與星期</span>
-          </label>
-        </div>
-
-        <div class="btn-group">
-          <button class="btn btn-primary" id="btn-show-time">
-            <span class="material-symbols-rounded">visibility</span>
-            <span>切換顯示目前時間</span>
-          </button>
-        </div>
-      </article>
-
-      <!-- Card (b): 正計時 Count-Up -->
-      <article class="card mode-card" id="card-mode-countup" data-layer="countup">
-        <header class="card-header">
-          <div class="card-title-group">
-            <span class="material-symbols-rounded" style="color: var(--accent-green);">timer</span>
-            <h2 class="card-title">(b) 正計時</h2>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">從 0 開始往上計時</span>
-          </div>
-          <span class="mode-badge-live">
-            <span class="status-dot" style="background-color: var(--accent-green);"></span>
-            正在舞臺展示中
-          </span>
-        </header>
-
-        <div class="card-timer-row">
-          <div class="card-timer-display tabular-nums" id="card-digits-countup">00:00</div>
-          <div class="card-timer-status" id="status-countup">待命</div>
-        </div>
-
-        <div class="btn-group">
-          <button class="btn btn-success" id="btn-countup-start">
-            <span class="material-symbols-rounded">play_arrow</span>
-            <span>開始正計時</span>
-          </button>
-          <button class="btn btn-warning" id="btn-countup-pause">
-            <span class="material-symbols-rounded">pause</span>
-            <span>暫停</span>
-          </button>
-          <button class="btn" id="btn-countup-reset">
-            <span class="material-symbols-rounded">restart_alt</span>
-            <span>重設 (00:00)</span>
-          </button>
-          <button class="btn btn-primary" id="btn-show-countup">
-            <span class="material-symbols-rounded">visibility</span>
-            <span>切換顯示正計時</span>
-          </button>
-        </div>
-      </article>
-
-      <!-- Card (c): 倒數計時 Countdown -->
-      <article class="card mode-card" id="card-mode-countdown" data-layer="countdown">
-        <header class="card-header">
-          <div class="card-title-group">
-            <span class="material-symbols-rounded" style="color: #38bdf8;">hourglass_bottom</span>
-            <h2 class="card-title">(c) 倒數計時</h2>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">歸零後變紅並繼續正數</span>
-          </div>
-          <span class="mode-badge-live">
-            <span class="status-dot" style="background-color: var(--accent-green);"></span>
-            正在舞臺展示中
-          </span>
-        </header>
-
-        <!-- Current Countdown Display -->
-        <div class="card-timer-row">
-          <div class="card-timer-display tabular-nums" id="card-digits-countdown">05:00</div>
-          <div class="card-timer-status" id="status-countdown">待命</div>
-        </div>
-
-        <!-- Presets -->
-        <div style="margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">
-          快捷時間設定 (Quick Presets)
-        </div>
-        <div class="presets-grid">
-          <button class="preset-chip" data-sec="30">30 秒</button>
-          <button class="preset-chip" data-sec="60">1 分鐘</button>
-          <button class="preset-chip" data-sec="180">3 分鐘</button>
-          <button class="preset-chip active" data-sec="300">5 分鐘</button>
-          <button class="preset-chip" data-sec="600">10 分鐘</button>
-          <button class="preset-chip" data-sec="900">15 分鐘</button>
-          <button class="preset-chip" data-sec="1200">20 分鐘</button>
-          <button class="preset-chip" data-sec="1800">30 分鐘</button>
-          <button class="preset-chip" data-sec="2700">45 分鐘</button>
-          <button class="preset-chip" data-sec="3600">60 分鐘</button>
-        </div>
-
-        <!-- Custom Duration Inputs -->
-        <div class="custom-duration-row">
-          <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-right: 0.25rem;">
-            自訂時間：
-          </span>
-          <div class="duration-input-group">
-            <input type="number" class="duration-input" id="input-custom-h" min="0" max="23" value="0">
-            <span class="duration-label">時</span>
-            <span class="duration-colon">:</span>
-            <input type="number" class="duration-input" id="input-custom-m" min="0" max="59" value="5">
-            <span class="duration-label">分</span>
-            <span class="duration-colon">:</span>
-            <input type="number" class="duration-input" id="input-custom-s" min="0" max="59" value="0">
-            <span class="duration-label">秒</span>
-          </div>
-          <button class="btn btn-sm btn-primary" id="btn-apply-custom-time" style="margin-left: auto;">
-            套用設定
-          </button>
-        </div>
-
-        <!-- Primary Control Buttons -->
-        <div class="btn-group">
-          <button class="btn btn-success" id="btn-countdown-start">
-            <span class="material-symbols-rounded">play_arrow</span>
-            <span>開始倒數</span>
-          </button>
-          <button class="btn btn-warning" id="btn-countdown-pause">
-            <span class="material-symbols-rounded">pause</span>
-            <span>暫停</span>
-          </button>
-          <button class="btn" id="btn-countdown-reset">
-            <span class="material-symbols-rounded">restart_alt</span>
-            <span>重設時間</span>
-          </button>
-          <button class="btn btn-primary" id="btn-show-countdown">
-            <span class="material-symbols-rounded">visibility</span>
-            <span>切換顯示倒數</span>
-          </button>
-        </div>
-
-        <!-- Micro Adjustments -->
-        <div class="btn-group" style="margin-top: -0.25rem;">
-          <button class="btn btn-sm" id="btn-adj-p60">+1 分鐘</button>
-          <button class="btn btn-sm" id="btn-adj-m60">-1 分鐘</button>
-          <button class="btn btn-sm" id="btn-adj-p30">+30 秒</button>
-          <button class="btn btn-sm" id="btn-adj-m30">-30 秒</button>
-        </div>
-
-        <!-- Bell Alert Rules Configuration -->
-        <div class="bell-rules-container">
-          <div class="bell-rules-header">
-            <div style="display: flex; align-items: center; gap: 0.4rem;">
-              <span class="material-symbols-rounded" style="color: var(--accent-yellow); font-size: 1.2rem;">notifications_active</span>
-              <span style="font-size: 0.9rem; font-weight: 600;">響鈴警示規則 (何時響鈴幾次)</span>
+      <!-- Card 1: 目前時間 -->
+      <article class="card bg-base-100 border border-base-300 shadow-md mode-card is-active-layer" id="card-mode-time" data-layer="time">
+        <div class="card-body p-5">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-rounded text-blue-400">schedule</span>
+              <h2 class="card-title text-base font-bold">目前時間</h2>
             </div>
-            <button class="btn btn-sm" id="btn-add-bell-rule">
-              <span class="material-symbols-rounded" style="font-size: 1rem;">add</span>
+            <span class="badge badge-success badge-sm gap-1 live-indicator">
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              展示中
+            </span>
+          </div>
+
+          <div class="bg-base-200 rounded-lg p-4 my-2 flex items-center justify-between">
+            <div class="card-timer-display tabular-nums text-3xl font-bold tracking-tight text-white" id="card-digits-time">00:00</div>
+          </div>
+
+          <div class="flex flex-wrap gap-4 text-xs mt-2 mb-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="check-time-24h" class="checkbox checkbox-xs checkbox-primary" checked />
+              <span>24 小時制</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="check-time-seconds" class="checkbox checkbox-xs checkbox-primary" />
+              <span>顯示秒數</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="check-time-date" class="checkbox checkbox-xs checkbox-primary" />
+              <span>顯示日期與星期</span>
+            </label>
+          </div>
+
+          <div class="flex gap-2">
+            <button class="btn btn-primary btn-sm gap-1" id="btn-show-time">
+              <span class="material-symbols-rounded text-base">visibility</span>
+              <span>切換顯示目前時間</span>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 2: 正計時 -->
+      <article class="card bg-base-100 border border-base-300 shadow-md mode-card" id="card-mode-countup" data-layer="countup">
+        <div class="card-body p-5">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-rounded text-green-400">timer</span>
+              <h2 class="card-title text-base font-bold">正計時</h2>
+            </div>
+            <span class="badge badge-success badge-sm gap-1 live-indicator hidden">
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              展示中
+            </span>
+          </div>
+
+          <div class="bg-base-200 rounded-lg p-4 my-2 flex items-center justify-between">
+            <div class="card-timer-display tabular-nums text-3xl font-bold tracking-tight text-white" id="card-digits-countup">00:00</div>
+            <div class="badge badge-neutral text-xs" id="status-countup">待命</div>
+          </div>
+
+          <!-- Buttons: Start & Pause NEVER show simultaneously! -->
+          <div class="flex flex-wrap gap-2 mt-2">
+            <button class="btn btn-success btn-sm gap-1 text-white" id="btn-countup-start">
+              <span class="material-symbols-rounded text-base">play_arrow</span>
+              <span id="text-countup-start">開始正計時</span>
+            </button>
+            <button class="btn btn-warning btn-sm gap-1 text-white hidden" id="btn-countup-pause">
+              <span class="material-symbols-rounded text-base">pause</span>
+              <span>暫停</span>
+            </button>
+            <button class="btn btn-ghost btn-outline btn-sm gap-1" id="btn-countup-reset">
+              <span class="material-symbols-rounded text-base">restart_alt</span>
+              <span>重設 (00:00)</span>
+            </button>
+            <button class="btn btn-primary btn-sm gap-1 ml-auto" id="btn-show-countup">
+              <span class="material-symbols-rounded text-base">visibility</span>
+              <span>切換顯示正計時</span>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 3: 倒數計時 -->
+      <article class="card bg-base-100 border border-base-300 shadow-md mode-card" id="card-mode-countdown" data-layer="countdown">
+        <div class="card-body p-5">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-rounded text-sky-400">hourglass_bottom</span>
+              <h2 class="card-title text-base font-bold">倒數計時</h2>
+            </div>
+            <span class="badge badge-success badge-sm gap-1 live-indicator hidden">
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              展示中
+            </span>
+          </div>
+
+          <div class="bg-base-200 rounded-lg p-4 my-2 flex items-center justify-between">
+            <div class="card-timer-display tabular-nums text-3xl font-bold tracking-tight text-white" id="card-digits-countdown">05:00</div>
+            <div class="badge badge-neutral text-xs" id="status-countdown">待命</div>
+          </div>
+
+          <!-- Preset Chips -->
+          <div class="text-xs font-semibold text-base-content/70 mt-2 mb-1.5">快捷設定</div>
+          <div class="flex flex-wrap gap-1.5 mb-3">
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="30">30 秒</button>
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="60">1 分鐘</button>
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="180">3 分鐘</button>
+            <button class="btn btn-xs btn-primary preset-chip active" data-sec="300">5 分鐘</button>
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="600">10 分鐘</button>
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="900">15 分鐘</button>
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="1200">20 分鐘</button>
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="1800">30 分鐘</button>
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="2700">45 分鐘</button>
+            <button class="btn btn-xs btn-outline preset-chip" data-sec="3600">60 分鐘</button>
+          </div>
+
+          <!-- Custom Duration Inputs -->
+          <div class="bg-base-200/60 p-2.5 rounded-lg flex items-center gap-2 mb-3 text-xs">
+            <span class="font-medium text-base-content/80">自訂時間：</span>
+            <div class="flex items-center gap-1">
+              <input type="number" class="input input-bordered input-xs w-14 text-center font-bold tabular-nums" id="input-custom-h" min="0" max="23" value="0">
+              <span>時</span>
+              <span>:</span>
+              <input type="number" class="input input-bordered input-xs w-14 text-center font-bold tabular-nums" id="input-custom-m" min="0" max="59" value="5">
+              <span>分</span>
+              <span>:</span>
+              <input type="number" class="input input-bordered input-xs w-14 text-center font-bold tabular-nums" id="input-custom-s" min="0" max="59" value="0">
+              <span>秒</span>
+            </div>
+            <button class="btn btn-xs btn-outline btn-primary ml-auto" id="btn-apply-custom-time">套用時間</button>
+          </div>
+
+          <!-- Buttons: Start & Pause NEVER show simultaneously! -->
+          <div class="flex flex-wrap gap-2 mb-2">
+            <button class="btn btn-success btn-sm gap-1 text-white" id="btn-countdown-start">
+              <span class="material-symbols-rounded text-base">play_arrow</span>
+              <span id="text-countdown-start">開始倒數</span>
+            </button>
+            <button class="btn btn-warning btn-sm gap-1 text-white hidden" id="btn-countdown-pause">
+              <span class="material-symbols-rounded text-base">pause</span>
+              <span>暫停</span>
+            </button>
+            <button class="btn btn-ghost btn-outline btn-sm gap-1" id="btn-countdown-reset">
+              <span class="material-symbols-rounded text-base">restart_alt</span>
+              <span>重設</span>
+            </button>
+            <button class="btn btn-primary btn-sm gap-1 ml-auto" id="btn-show-countdown">
+              <span class="material-symbols-rounded text-base">visibility</span>
+              <span>切換顯示倒數</span>
+            </button>
+          </div>
+
+          <!-- Micro adjustments -->
+          <div class="flex gap-1.5 mb-4">
+            <button class="btn btn-xs btn-ghost btn-outline" id="btn-adj-p60">+1 分鐘</button>
+            <button class="btn btn-xs btn-ghost btn-outline" id="btn-adj-m60">-1 分鐘</button>
+            <button class="btn btn-xs btn-ghost btn-outline" id="btn-adj-p30">+30 秒</button>
+            <button class="btn btn-xs btn-ghost btn-outline" id="btn-adj-m30">-30 秒</button>
+          </div>
+
+          <!-- Bell Alerts Rules Section -->
+          <div class="divider my-1"></div>
+          
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-1.5 text-xs font-bold">
+              <span class="material-symbols-rounded text-yellow-400 text-sm">notifications_active</span>
+              <span>響鈴警示規則</span>
+            </div>
+            <button class="btn btn-xs btn-outline btn-primary gap-1" id="btn-add-bell-rule">
+              <span class="material-symbols-rounded text-xs">add</span>
               <span>新增規則</span>
             </button>
           </div>
 
-          <!-- Dynamic Bell Rules List -->
-          <div id="bell-rules-list">
+          <!-- Bell Rules List (Only "何時響幾次", no remarks) -->
+          <div id="bell-rules-list" class="space-y-1.5 mb-3">
             <!-- Rendered by JS -->
           </div>
 
-          <!-- Bell Sound Selection -->
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem; font-size: 0.85rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="color: var(--text-secondary);">鈴聲音效：</span>
-              <select class="custom-select" id="select-bell-sound">
-                <option value="chime" selected>經典會議水晶鈴 (Chime)</option>
-                <option value="marimba">現代雙音木琴 (Marimba)</option>
-                <option value="beep">電子數位嗶聲 (Digital Beep)</option>
+          <!-- Bell Sound Selection (No English words, Default Electronic Digital) -->
+          <div class="flex items-center justify-between text-xs pt-1">
+            <div class="flex items-center gap-2">
+              <span class="text-base-content/70">鈴聲音效：</span>
+              <select class="select select-bordered select-xs" id="select-bell-sound">
+                <option value="beep" selected>電子數位</option>
+                <option value="chime">經典會議水晶鈴</option>
+                <option value="marimba">現代雙音木琴</option>
               </select>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="color: var(--text-secondary);">音量：</span>
-              <input type="range" id="slider-volume" min="0" max="1" step="0.05" value="0.8" style="width: 80px; accent-color: var(--primary);">
+            <div class="flex items-center gap-2">
+              <span class="text-base-content/70">音量：</span>
+              <input type="range" id="slider-volume" min="0" max="1" step="0.05" value="0.8" class="range range-primary range-xs w-20" />
             </div>
           </div>
-        </div>
 
+        </div>
       </article>
 
-      <!-- Card (d): 黑畫面 Blackout -->
-      <article class="card mode-card" id="card-mode-blackout" data-layer="blackout">
-        <header class="card-header">
-          <div class="card-title-group">
-            <span class="material-symbols-rounded" style="color: #9ca3af;">videocam_off</span>
-            <h2 class="card-title">(d) 黑畫面</h2>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">全螢幕純黑隱藏</span>
+      <!-- Card 4: 黑畫面 -->
+      <article class="card bg-base-100 border border-base-300 shadow-md mode-card" id="card-mode-blackout" data-layer="blackout">
+        <div class="card-body p-5">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-rounded text-gray-400">videocam_off</span>
+              <h2 class="card-title text-base font-bold">黑畫面</h2>
+            </div>
+            <span class="badge badge-error badge-sm gap-1 live-indicator hidden">
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              黑畫面中
+            </span>
           </div>
-          <span class="mode-badge-live">
-            <span class="status-dot" style="background-color: var(--accent-red);"></span>
-            黑畫面生效中
-          </span>
-        </header>
 
-        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem;">
-          切換至黑畫面會隱藏舞臺上的所有時鐘圖層與圖示，使投影或大螢幕呈現純黑效果。
-          背景中的正計時或倒數計時仍會依設定持續在後台運行，解除黑畫面時即刻接續顯示。
-        </p>
+          <p class="text-xs text-base-content/70 leading-relaxed mb-4">
+            切換至黑畫面會隱藏舞臺上的所有時鐘與圖示，使展示螢幕呈現純黑。後台計時器將持續運作，解除黑畫面時即刻接續顯示。
+          </p>
 
-        <div class="btn-group">
-          <button class="btn btn-danger" id="btn-toggle-blackout">
-            <span class="material-symbols-rounded">videocam_off</span>
-            <span>立即切換黑畫面</span>
+          <button class="btn btn-error btn-outline btn-sm gap-2" id="btn-toggle-blackout">
+            <span class="material-symbols-rounded text-base">videocam_off</span>
+            <span id="text-blackout-btn">立即切換黑畫面</span>
           </button>
         </div>
       </article>
@@ -407,39 +447,37 @@
     </main>
   </div>
 
-  <!-- Modal: Add Bell Alert Rule -->
-  <div class="modal-overlay" id="modal-add-bell">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3 class="modal-title">新增響鈴警示規則</h3>
-        <button class="btn-close-modal" id="btn-close-bell-modal">
-          <span class="material-symbols-rounded">close</span>
-        </button>
-      </div>
+  <!-- DaisyUI Modal: Add Bell Alert Rule (No notes/remarks field!) -->
+  <dialog id="modal-add-bell" class="modal">
+    <div class="modal-box max-w-md">
+      <h3 class="font-bold text-base mb-4 flex items-center gap-2">
+        <span class="material-symbols-rounded text-yellow-400">notifications</span>
+        新增響鈴規則
+      </h3>
 
-      <form id="form-add-bell">
-        <div class="form-group">
-          <label class="form-label">觸發時機類型</label>
-          <select class="custom-select form-input" id="rule-input-type">
-            <option value="remaining">剩餘時間 (預備鈴)</option>
-            <option value="at_zero">倒數歸零 00:00 (結束鈴)</option>
-            <option value="overtime">超時時間 (超時提醒)</option>
+      <form id="form-add-bell" method="dialog">
+        <div class="form-control mb-3">
+          <label class="label py-1"><span class="label-text text-xs font-semibold">觸發時機類型</span></label>
+          <select class="select select-bordered select-sm w-full" id="rule-input-type">
+            <option value="remaining">剩餘時間</option>
+            <option value="at_zero">倒數歸零 00:00</option>
+            <option value="overtime">超時時間</option>
           </select>
         </div>
 
-        <div class="form-group" id="rule-time-group">
-          <label class="form-label" id="rule-time-label">時間 (分 : 秒)</label>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="number" class="duration-input" id="rule-input-m" min="0" max="59" value="1" style="width: 70px;">
-            <span class="duration-label">分</span>
-            <input type="number" class="duration-input" id="rule-input-s" min="0" max="59" value="0" style="width: 70px;">
-            <span class="duration-label">秒</span>
+        <div class="form-control mb-3" id="rule-time-group">
+          <label class="label py-1"><span class="label-text text-xs font-semibold">時間</span></label>
+          <div class="flex items-center gap-2">
+            <input type="number" class="input input-bordered input-sm w-20 text-center font-bold tabular-nums" id="rule-input-m" min="0" max="59" value="1">
+            <span class="text-xs">分</span>
+            <input type="number" class="input input-bordered input-sm w-20 text-center font-bold tabular-nums" id="rule-input-s" min="0" max="59" value="0">
+            <span class="text-xs">秒</span>
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">響鈴次數</label>
-          <select class="custom-select form-input" id="rule-input-rings">
+        <div class="form-control mb-4">
+          <label class="label py-1"><span class="label-text text-xs font-semibold">響鈴次數</span></label>
+          <select class="select select-bordered select-sm w-full" id="rule-input-rings">
             <option value="1">響 1 聲</option>
             <option value="2" selected>響 2 聲</option>
             <option value="3">響 3 聲</option>
@@ -448,64 +486,16 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">規則備註名稱</label>
-          <input type="text" class="form-input" id="rule-input-label" placeholder="例如：預備鈴、結束鈴、超時警示">
-        </div>
-
-        <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem;">
-          <button type="button" class="btn" id="btn-cancel-bell-modal">取消</button>
-          <button type="submit" class="btn btn-primary">新增規則</button>
+        <div class="modal-action">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-cancel-bell-modal">取消</button>
+          <button type="submit" class="btn btn-primary btn-sm">確定新增</button>
         </div>
       </form>
     </div>
-  </div>
-
-  <!-- Modal: Deployment Guide & Overview -->
-  <div class="modal-overlay" id="modal-guide">
-    <div class="modal-dialog" style="max-width: 680px;">
-      <div class="modal-header">
-        <h3 class="modal-title">TMR 舞臺時鐘使用與部署指南</h3>
-        <button class="btn-close-modal" id="btn-close-guide-modal">
-          <span class="material-symbols-rounded">close</span>
-        </button>
-      </div>
-
-      <div style="font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary); display: flex; flex-direction: column; gap: 1rem;">
-        <div>
-          <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.35rem;">🚀 雙視窗簡報操作方式</h4>
-          <p>
-            點擊預覽區旁的<strong>「另開展示視窗（簡報模式）」</strong>按鈕，即可打開專門給外接螢幕、投影機或 OBS 使用的乾淨時鐘視窗。
-            後台與展示視窗會透過瀏覽器原生 <code>BroadcastChannel</code> 自動即時同步，操作即點即生效！
-          </p>
-        </div>
-
-        <div>
-          <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.35rem;">🎨 圖示規則與字型規格</h4>
-          <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.3rem;">
-            <li><strong>字型</strong>：採用 Google <code>Roboto Flex</code>，並完整啟用 <code>tabular-nums</code> 等寬數字屬性，數字跳動時絕對平穩不晃動。</li>
-            <li><strong>目前時間</strong>：切換至此模式時，短暫顯示白色 <code style="color: #fff;">watch</code>，此外不顯示圖示。</li>
-            <li><strong>正計時</strong>：開始/繼續時短暫顯示綠色 <code style="color: var(--accent-green);">timer_arrow_up</code>；暫停時顯示橘色 <code style="color: var(--accent-orange);">pause</code>。</li>
-            <li><strong>倒數計時</strong>：開始/繼續時短暫顯示淺藍色 <code style="color: var(--accent-blue);">timer_arrow_down</code>；暫停時顯示橘色 <code style="color: var(--accent-orange);">pause</code>；響鈴時顯示黃色 <code style="color: var(--accent-yellow);">notifications_active</code>。</li>
-            <li><strong>歸零變紅超時</strong>：倒數結束到達 00:00 後，時鐘數字立即轉為鮮豔紅色並繼續正數上去。</li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.35rem;">🌐 部署到 GitHub Pages 或 Vercel</h4>
-          <p>本專案為 100% 純靜態前端架構，無須建置步驟，推送到 GitHub 即可直接上線：</p>
-          <ul style="padding-left: 1.25rem; margin-top: 0.3rem;">
-            <li><strong>GitHub Pages</strong>：在 GitHub 倉庫的 Settings ➔ Pages ➔ Source 選擇 <code>Deploy from a branch (main / root)</code>，即可自動發布。</li>
-            <li><strong>Vercel</strong>：直接在 Vercel 點擊「Add New Project」並匯入此 GitHub 倉庫，無須任何建置設定即可一鍵部署。</li>
-          </ul>
-        </div>
-      </div>
-
-      <div style="margin-top: 1.5rem; text-align: right;">
-        <button class="btn btn-primary" id="btn-confirm-guide">了解</button>
-      </div>
-    </div>
-  </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
 
   <script src="./js/audio.js"></script>
   <script src="./js/state.js"></script>

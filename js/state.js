@@ -1,10 +1,10 @@
 /**
- * TMR Core State & Synchronization Engine
+ * TMR Core State & Synchronization Engine (v3.1)
  * Handles timer time calculation, layer states, bell triggers,
  * and real-time syncing via BroadcastChannel & localStorage.
  */
 
-const STORAGE_KEY = 'tmr_timer_state_v2';
+const STORAGE_KEY = 'tmr_timer_state_v3_1';
 const CHANNEL_NAME = 'tmr_timer_channel';
 
 // Default initial state
@@ -15,18 +15,18 @@ const defaultState = {
   fadeAnimation: true,
   fadeDurationMs: 400,
 
-  // Options
+  // Options (showSeconds and showDate default to FALSE)
   timeConfig: {
     format24: true,
-    showSeconds: true,
-    showDate: true
+    showSeconds: false,
+    showDate: false
   },
 
   // Count-up timer
   countup: {
     status: 'idle', // 'idle' | 'running' | 'paused'
     elapsedMs: 0,
-    startedAt: null, // timestamp
+    startedAt: null,
     pausedAt: null
   },
 
@@ -38,42 +38,43 @@ const defaultState = {
     startedAt: null,
     targetEndTime: null,
     overtimeMs: 0,
-    triggeredRuleIds: [] // Track which bell alerts already triggered in this cycle
+    triggeredRuleIds: []
   },
 
-  // Bell alert rules
+  // Bell alert rules (No custom remarks/notes, only time and ring count)
   bellRules: [
-    { id: 'rule_1', type: 'remaining', timeSec: 60, rings: 1, label: '剩餘 1 分鐘 (預備鈴)', enabled: true },
-    { id: 'rule_2', type: 'at_zero', timeSec: 0, rings: 2, label: '倒數歸零 00:00 (結束鈴)', enabled: true },
-    { id: 'rule_3', type: 'overtime', timeSec: 60, rings: 3, label: '超時 1 分鐘 (超時提醒)', enabled: true }
+    { id: 'rule_1', type: 'remaining', timeSec: 60, rings: 1, enabled: true },
+    { id: 'rule_2', type: 'at_zero', timeSec: 0, rings: 2, enabled: true },
+    { id: 'rule_3', type: 'overtime', timeSec: 60, rings: 3, enabled: true }
   ],
 
-  // Sound settings
+  // Sound settings (default: 'beep')
   soundSettings: {
-    sound: 'chime', // 'chime' | 'marimba' | 'beep'
+    sound: 'beep', // 'beep' | 'chime' | 'marimba'
     volume: 0.8,
     muted: false
   },
 
-  // Current active icon beside clock
+  // Current active icon beside/below clock
   // name: 'watch' | 'timer_arrow_up' | 'timer_arrow_down' | 'pause' | 'notifications_active' | ''
-  // color: 'white' | 'green' | 'orange' | 'lightblue' | 'yellow'
+  // color: 'gray' | 'green' | 'orange' | 'lightblue' | 'yellow'
   icon: {
     name: '',
     color: '',
     persistent: false,
     expiresAt: 0,
-    seq: 0 // unique sequence number for re-triggering animations
+    seq: 0
   },
 
-  // General settings
+  // Display settings
   displaySettings: {
-    iconPosition: 'right', // 'right' | 'left'
-    iconDurationMs: 2500,  // brief display duration (ms)
-    overtimePrefix: '+'    // '+' or '-' or ''
+    // iconMode: 'side' (側邊對稱) | 'bottom' (下方迷你置中) | 'none' (不顯示)
+    iconMode: 'side',
+    iconDurationMs: 1250, // Display duration halved (~1.25s)
+    overtimePrefix: '+'   // '+' prefix when overtime
   },
 
-  version: 2
+  version: 3.1
 };
 
 class TimerStore {
@@ -132,15 +133,12 @@ class TimerStore {
           this.notifyBell(payload.rings, payload.sound);
         } else if (type === 'REQUEST_STATE' && this.isMaster) {
           this.broadcast('STATE_UPDATE', this.state);
-        } else if (type === 'PING') {
-          if (this.isMaster) {
-            this.broadcast('PONG', { role: 'master' });
-          }
+        } else if (type === 'CLIENT_PING' && this.isMaster) {
+          this.broadcast('PONG', { role: 'master' });
         }
       };
     }
 
-    // Storage event fallback for older or cross-origin browsers
     window.addEventListener('storage', (e) => {
       if (e.key === STORAGE_KEY && e.newValue) {
         try {
@@ -152,7 +150,6 @@ class TimerStore {
       }
     });
 
-    // Start local calculation ticker
     this.startTicker();
   }
 
@@ -206,7 +203,6 @@ class TimerStore {
     this.notify();
   }
 
-  // Set active layer with icon logic
   setActiveLayer(layer) {
     if (this.state.activeLayer === layer) return;
 
@@ -214,17 +210,18 @@ class TimerStore {
       state.previousLayer = state.activeLayer;
       state.activeLayer = layer;
 
-      // Icon Rule 1: Switching to current time -> briefly show white 'watch'
+      const duration = state.displaySettings.iconDurationMs || 1250;
+
+      // Icon Rule 1: Switching to current time -> briefly show GRAY 'watch'
       if (layer === 'time') {
         state.icon = {
           name: 'watch',
-          color: 'white',
+          color: 'gray',
           persistent: false,
-          expiresAt: Date.now() + (state.displaySettings.iconDurationMs || 2500),
+          expiresAt: Date.now() + duration,
           seq: (state.icon.seq || 0) + 1
         };
       } else if (layer === 'blackout') {
-        // Blackout hides everything including icon
         state.icon = {
           name: '',
           color: '',
@@ -233,7 +230,6 @@ class TimerStore {
           seq: (state.icon.seq || 0) + 1
         };
       } else if (layer === 'countup') {
-        // If countup is paused, show orange pause; if running, icon depends on start
         if (state.countup.status === 'paused') {
           state.icon = {
             name: 'pause',
@@ -243,7 +239,6 @@ class TimerStore {
             seq: (state.icon.seq || 0) + 1
           };
         } else {
-          // Clear persistent pause if any
           state.icon = {
             name: '',
             color: '',
@@ -287,6 +282,10 @@ class TimerStore {
   startCountup() {
     this.update((state) => {
       const now = Date.now();
+      // Requirement 4: Automatically switch active layer to countup
+      state.previousLayer = state.activeLayer;
+      state.activeLayer = 'countup';
+
       if (state.countup.status === 'idle') {
         state.countup.status = 'running';
         state.countup.elapsedMs = 0;
@@ -296,12 +295,13 @@ class TimerStore {
         state.countup.startedAt = now - state.countup.elapsedMs;
       }
 
+      const duration = state.displaySettings.iconDurationMs || 1250;
       // Icon Rule 2: Start / Resume countup -> briefly show green timer_arrow_up
       state.icon = {
         name: 'timer_arrow_up',
         color: 'green',
         persistent: false,
-        expiresAt: now + (state.displaySettings.iconDurationMs || 2500),
+        expiresAt: now + duration,
         seq: (state.icon.seq || 0) + 1
       };
     });
@@ -333,7 +333,6 @@ class TimerStore {
       state.countup.startedAt = null;
       state.countup.pausedAt = null;
 
-      // If active layer is countup and icon was pause, clear it
       if (state.activeLayer === 'countup') {
         state.icon = {
           name: '',
@@ -375,6 +374,10 @@ class TimerStore {
   startCountdown() {
     this.update((state) => {
       const now = Date.now();
+      // Requirement 4: Automatically switch active layer to countdown
+      state.previousLayer = state.activeLayer;
+      state.activeLayer = 'countdown';
+
       if (state.countdown.status === 'idle') {
         state.countdown.status = 'running';
         state.countdown.remainingMs = state.countdown.initialSec * 1000;
@@ -387,18 +390,18 @@ class TimerStore {
           state.countdown.status = 'running';
           state.countdown.targetEndTime = now + state.countdown.remainingMs;
         } else {
-          // Resumed during overtime
           state.countdown.status = 'overtime';
           state.countdown.targetEndTime = now - state.countdown.overtimeMs;
         }
       }
 
+      const duration = state.displaySettings.iconDurationMs || 1250;
       // Icon Rule 3: Start / Resume countdown -> briefly show light blue timer_arrow_down
       state.icon = {
         name: 'timer_arrow_down',
         color: 'lightblue',
         persistent: false,
-        expiresAt: now + (state.displaySettings.iconDurationMs || 2500),
+        expiresAt: now + duration,
         seq: (state.icon.seq || 0) + 1
       };
     });
@@ -407,7 +410,6 @@ class TimerStore {
   pauseCountdown() {
     this.update((state) => {
       if (state.countdown.status === 'running' || state.countdown.status === 'overtime') {
-        const wasOvertime = state.countdown.status === 'overtime';
         state.countdown.status = 'paused';
 
         // Icon Rule 3: Pause countdown -> orange pause (persistent)
@@ -460,16 +462,15 @@ class TimerStore {
   }
 
   // ==========================================
-  // Bell Alert Rules Management
+  // Bell Alert Rules Management (No remarks)
   // ==========================================
   addBellRule(rule) {
     this.update((state) => {
       const newRule = {
         id: 'rule_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-        type: rule.type || 'remaining', // 'remaining' | 'at_zero' | 'overtime'
+        type: rule.type || 'remaining',
         timeSec: Math.max(0, parseInt(rule.timeSec) || 0),
         rings: Math.max(1, Math.min(10, parseInt(rule.rings) || 1)),
-        label: rule.label || '自訂響鈴',
         enabled: true
       };
       state.bellRules.push(newRule);
@@ -489,18 +490,16 @@ class TimerStore {
     });
   }
 
-  triggerBellAlert(rings = 1, sound = 'chime') {
-    const soundType = sound || this.state.soundSettings.sound;
+  triggerBellAlert(rings = 1, sound = 'beep') {
+    const soundType = sound || this.state.soundSettings.sound || 'beep';
     const ringCount = Math.max(1, rings);
 
-    // Play sound locally via synth
     if (window.bellSynth) {
       window.bellSynth.playBell(ringCount, soundType);
     }
 
-    // Set Icon Rule 3: yellow notifications_active
     const now = Date.now();
-    const duration = ringCount * 650 + 1500; // Show icon during ringing plus cushion
+    const duration = ringCount * 300 + 1000;
     this.update((state) => {
       state.icon = {
         name: 'notifications_active',
@@ -511,7 +510,6 @@ class TimerStore {
       };
     });
 
-    // Broadcast bell trigger
     this.broadcast('BELL_TRIGGER', { rings: ringCount, sound: soundType });
   }
 
@@ -521,7 +519,6 @@ class TimerStore {
   startTicker() {
     if (this.tickerInterval) return;
 
-    // Tick every ~50ms for buttery smooth countdown & millisecond responsiveness
     this.tickerInterval = setInterval(() => {
       this.tick();
     }, 50);
@@ -531,7 +528,6 @@ class TimerStore {
     const now = Date.now();
     let stateChanged = false;
 
-    // Check count-up
     if (this.state.countup.status === 'running') {
       const elapsed = now - this.state.countup.startedAt;
       if (Math.abs(elapsed - this.state.countup.elapsedMs) >= 50) {
@@ -540,30 +536,25 @@ class TimerStore {
       }
     }
 
-    // Check countdown
     if (this.state.countdown.status === 'running' || this.state.countdown.status === 'overtime') {
       const diff = this.state.countdown.targetEndTime - now;
 
       if (diff > 0) {
-        // Normal countdown counting down towards zero
         this.state.countdown.remainingMs = diff;
         this.state.countdown.overtimeMs = 0;
         this.state.countdown.status = 'running';
       } else {
-        // Reached zero and counts UP in overtime!
         this.state.countdown.remainingMs = 0;
         this.state.countdown.overtimeMs = Math.abs(diff);
         this.state.countdown.status = 'overtime';
       }
       stateChanged = true;
 
-      // Evaluate bell alert rules (only if master or single runner)
       if (this.isMaster) {
         this.checkBellRules();
       }
     }
 
-    // Check temporary icon expiration
     if (this.state.icon.name && !this.state.icon.persistent && this.state.icon.expiresAt > 0) {
       if (now >= this.state.icon.expiresAt) {
         this.state.icon.name = '';
@@ -592,17 +583,14 @@ class TimerStore {
       let shouldFire = false;
 
       if (rule.type === 'remaining') {
-        // Fires when remaining seconds <= rule.timeSec
         if (remainingSec <= rule.timeSec && cd.status === 'running') {
           shouldFire = true;
         }
       } else if (rule.type === 'at_zero') {
-        // Fires when hits 0 or overtime starts
         if (cd.status === 'overtime' || (cd.remainingMs <= 100 && cd.status === 'running')) {
           shouldFire = true;
         }
       } else if (rule.type === 'overtime') {
-        // Fires when overtime >= rule.timeSec
         if (cd.status === 'overtime' && overtimeSec >= rule.timeSec) {
           shouldFire = true;
         }
@@ -613,7 +601,7 @@ class TimerStore {
         cd.triggeredRuleIds = Array.from(triggered);
         this.saveState();
         this.triggerBellAlert(rule.rings, this.state.soundSettings.sound);
-        break; // Process one trigger per tick
+        break;
       }
     }
   }
@@ -634,7 +622,7 @@ class TimerStore {
     return `${pad(m)}:${pad(s)}`;
   }
 
-  static formatTime(date, format24 = true, showSeconds = true) {
+  static formatTime(date, format24 = true, showSeconds = false) {
     let hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
@@ -651,6 +639,19 @@ class TimerStore {
       return `${hStr}:${minutes}:${seconds}${ampm}`;
     }
     return `${hStr}:${minutes}${ampm}`;
+  }
+
+  static formatRuleText(rule) {
+    let when = '';
+    const timeStr = TimerStore.formatHMS(rule.timeSec * 1000);
+    if (rule.type === 'remaining') {
+      when = `剩餘 ${timeStr}`;
+    } else if (rule.type === 'at_zero') {
+      when = `倒數歸零 00:00`;
+    } else if (rule.type === 'overtime') {
+      when = `超時 ${timeStr}`;
+    }
+    return `${when} ➔ 響 ${rule.rings} 聲`;
   }
 }
 

@@ -1,10 +1,10 @@
 /**
- * TMR Presentation Display Window Script
- * Dedicated stage renderer: minimal, ultra-clean, synchronized with master admin console.
+ * TMR Presentation Display Window Script (v3.1)
+ * Dedicated stage renderer: minimal, ultra-clean, synchronized with master console.
  */
 
 (function () {
-  const store = new TimerStore(false); // client mode
+  const store = new TimerStore(false); // Client mode
 
   // Elements
   const stageContainer = document.getElementById('stage-container');
@@ -32,17 +32,16 @@
 
   const hudControls = document.getElementById('hud-controls');
   const btnFullscreen = document.getElementById('btn-fullscreen');
-  const syncIndicator = document.getElementById('sync-indicator');
 
   let mouseTimer = null;
 
-  // Send request for initial state
+  // Ask master for initial state
   store.broadcast('REQUEST_STATE', {});
 
   // Heartbeat ping to master
   setInterval(() => {
     store.broadcast('CLIENT_PING', { timestamp: Date.now() });
-  }, 3000);
+  }, 2500);
 
   // Play bell when alert triggered
   store.subscribeBell((rings, sound) => {
@@ -56,6 +55,14 @@
     render(state);
   });
 
+  /**
+   * Format digits HTML with blinking colons
+   */
+  function formatDigitsHTML(str, shouldBlink, isVisible) {
+    const colonClass = shouldBlink && !isVisible ? 'digit-colon colon-hidden' : 'digit-colon';
+    return str.split(':').map((part) => `<span>${part}</span>`).join(`<span class="${colonClass}">:</span>`);
+  }
+
   function render(state) {
     if (!state) return;
 
@@ -67,64 +74,77 @@
       stageContainer.classList.add('no-fade');
     }
 
-    // 2. Icon position setting (left vs right)
-    const isIconLeft = state.displaySettings?.iconPosition === 'left';
+    // 2. Icon display mode: 'side' | 'bottom' | 'none'
+    const iconMode = state.displaySettings?.iconMode || 'side';
     [contentTime, contentCountup, contentCountdown].forEach((el) => {
       if (el) {
-        if (isIconLeft) el.classList.add('icon-left');
-        else el.classList.remove('icon-left');
+        el.className = `clock-content mode-${iconMode}`;
       }
     });
 
-    // 3. Active Layer Switcher
+    // 3. Active Layer Switcher (Pure opacity transition)
     const active = state.activeLayer;
     layerTime.classList.toggle('active', active === 'time');
     layerCountup.classList.toggle('active', active === 'countup');
     layerCountdown.classList.toggle('active', active === 'countdown');
     layerBlackout.classList.toggle('active', active === 'blackout');
 
-    // 4. Layer (a): Current Time
-    if (active === 'time' || true) {
-      const now = new Date();
-      const timeStr = TimerStore.formatTime(
-        now,
-        state.timeConfig.format24,
-        state.timeConfig.showSeconds
-      );
-      digitsTime.textContent = timeStr;
+    // Colon blink clock phase (500ms on / 500ms off)
+    const isColonPhaseVisible = Date.now() % 1000 < 500;
 
-      if (state.timeConfig.showDate) {
-        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const weekday = weekdays[now.getDay()];
-        sublineDate.textContent = `${year}年${month}月${day}日 星期${weekday}`;
-        sublineDate.style.display = 'block';
-      } else {
-        sublineDate.style.display = 'none';
-      }
+    // 4. Layer: Current Time
+    const now = new Date();
+    const timeStr = TimerStore.formatTime(
+      now,
+      state.timeConfig.format24,
+      state.timeConfig.showSeconds
+    );
+    // Time colon ALWAYS blinks per requirement 5
+    digitsTime.innerHTML = formatDigitsHTML(timeStr, true, isColonPhaseVisible);
+
+    if (state.timeConfig.showDate) {
+      const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const weekday = weekdays[now.getDay()];
+      sublineDate.textContent = `${year}年${month}月${day}日 星期${weekday}`;
+      sublineDate.style.display = 'block';
+    } else {
+      sublineDate.style.display = 'none';
     }
 
-    // 5. Layer (b): Count-up
-    digitsCountup.textContent = TimerStore.formatHMS(state.countup.elapsedMs);
+    // 5. Layer: Count-up
+    const cuRunning = state.countup.status === 'running';
+    const cuStr = TimerStore.formatHMS(state.countup.elapsedMs);
+    digitsCountup.innerHTML = formatDigitsHTML(cuStr, cuRunning, isColonPhaseVisible);
 
-    // 6. Layer (c): Countdown & Overtime
+    // 6. Layer: Countdown & Overtime
     const cd = state.countdown;
+    const cdRunning = cd.status === 'running' || cd.status === 'overtime';
     if (cd.status === 'overtime') {
       const prefix = state.displaySettings?.overtimePrefix || '+';
-      digitsCountdown.textContent = `${prefix}${TimerStore.formatHMS(cd.overtimeMs)}`;
+      const cdStr = `${prefix}${TimerStore.formatHMS(cd.overtimeMs)}`;
+      digitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
       digitsCountdown.classList.add('overtime');
     } else {
-      digitsCountdown.textContent = TimerStore.formatHMS(cd.remainingMs);
+      const cdStr = TimerStore.formatHMS(cd.remainingMs);
+      digitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
       digitsCountdown.classList.remove('overtime');
     }
 
     // 7. Icon State Handling
-    updateIcon(state);
+    updateIcon(state, iconMode);
   }
 
-  function updateIcon(state) {
+  function updateIcon(state, iconMode) {
+    if (iconMode === 'none') {
+      [iconTime, iconCountup, iconCountdown].forEach((slot) => {
+        if (slot) slot.classList.remove('visible');
+      });
+      return;
+    }
+
     const iconData = state.icon;
     const now = Date.now();
     const isVisible =
@@ -133,7 +153,6 @@
       state.activeLayer !== 'blackout' &&
       (iconData.persistent || (iconData.expiresAt > 0 && now < iconData.expiresAt));
 
-    // Determine target slot based on active layer
     let activeSlot = null;
     let activeSymbol = null;
 
@@ -148,34 +167,26 @@
       activeSymbol = iconSymbolCountdown;
     }
 
-    // Reset all slots first
     [iconTime, iconCountup, iconCountdown].forEach((slot) => {
-      if (slot !== activeSlot) {
-        slot.classList.remove('visible', 'color-white', 'color-green', 'color-orange', 'color-lightblue', 'color-yellow');
+      if (slot !== activeSlot && slot) {
+        slot.classList.remove('visible', 'color-gray', 'color-green', 'color-orange', 'color-lightblue', 'color-yellow');
       }
     });
 
     if (isVisible && activeSlot && activeSymbol) {
       activeSymbol.textContent = iconData.name;
-      activeSlot.className = 'icon-slot visible color-' + (iconData.color || 'white');
+      activeSlot.className = `icon-slot visible color-${iconData.color || 'gray'}`;
     } else if (activeSlot) {
       activeSlot.classList.remove('visible');
     }
   }
 
-  // Real-time animation frame clock tick for millisecond accuracy
-  function clockTick() {
-    if (store.state.activeLayer === 'time') {
-      const now = new Date();
-      digitsTime.textContent = TimerStore.formatTime(
-        now,
-        store.state.timeConfig.format24,
-        store.state.timeConfig.showSeconds
-      );
-    }
-    requestAnimationFrame(clockTick);
+  // Animation frame loop for continuous sub-second accuracy & colon blinking
+  function animLoop() {
+    render(store.state);
+    requestAnimationFrame(animLoop);
   }
-  requestAnimationFrame(clockTick);
+  requestAnimationFrame(animLoop);
 
   // HUD mouse hover controls
   window.addEventListener('mousemove', () => {
