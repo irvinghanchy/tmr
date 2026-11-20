@@ -213,7 +213,7 @@
       const val = parseInt(e.target.value) ?? 100;
       store.setBorderDistance(val);
       if (labelBorderDistance) {
-        if (val === 100) labelBorderDistance.textContent = '現況預設 (100%)';
+        if (val === 100) labelBorderDistance.textContent = '預設 (100%)';
         else if (val === 0) labelBorderDistance.textContent = '無邊界 (0%)';
         else labelBorderDistance.textContent = `${val}%`;
       }
@@ -436,7 +436,7 @@
       sliderBorderDistance.value = String(borderDist);
     }
     if (labelBorderDistance) {
-      if (borderDist === 100) labelBorderDistance.textContent = '現況預設 (100%)';
+      if (borderDist === 100) labelBorderDistance.textContent = '預設 (100%)';
       else if (borderDist === 0) labelBorderDistance.textContent = '無邊界 (0%)';
       else labelBorderDistance.textContent = `${borderDist}%`;
     }
