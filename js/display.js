@@ -1,6 +1,6 @@
 /**
- * TMR Presentation Display Window Script (v3.1)
- * Dedicated stage renderer: minimal, ultra-clean, synchronized with master console.
+ * TMR Presentation Display Window Script (v3.2)
+ * Features multi-icon stacking and smooth queue reflow.
  */
 
 (function () {
@@ -26,10 +26,6 @@
   const iconCountup = document.getElementById('icon-countup');
   const iconCountdown = document.getElementById('icon-countdown');
 
-  const iconSymbolTime = document.getElementById('icon-symbol-time');
-  const iconSymbolCountup = document.getElementById('icon-symbol-countup');
-  const iconSymbolCountdown = document.getElementById('icon-symbol-countdown');
-
   const hudControls = document.getElementById('hud-controls');
   const btnFullscreen = document.getElementById('btn-fullscreen');
 
@@ -44,9 +40,9 @@
   }, 2500);
 
   // Play bell when alert triggered
-  store.subscribeBell((rings, sound) => {
+  store.subscribeBell((rings, sound, isLong) => {
     if (window.bellSynth) {
-      window.bellSynth.playBell(rings, sound);
+      window.bellSynth.playBell(rings, sound, isLong);
     }
   });
 
@@ -56,11 +52,15 @@
   });
 
   /**
-   * Format digits HTML with blinking colons
+   * Format digits HTML with blinking colons (strictly trimmed, zero trailing space)
    */
   function formatDigitsHTML(str, shouldBlink, isVisible) {
     const colonClass = shouldBlink && !isVisible ? 'digit-colon colon-hidden' : 'digit-colon';
-    return str.split(':').map((part) => `<span>${part}</span>`).join(`<span class="${colonClass}">:</span>`);
+    return str
+      .trim()
+      .split(':')
+      .map((part) => `<span>${part.trim()}</span>`)
+      .join(`<span class="${colonClass}">:</span>`);
   }
 
   function render(state) {
@@ -99,7 +99,6 @@
       state.timeConfig.format24,
       state.timeConfig.showSeconds
     );
-    // Time colon ALWAYS blinks per requirement 5
     digitsTime.innerHTML = formatDigitsHTML(timeStr, true, isColonPhaseVisible);
 
     if (state.timeConfig.showDate) {
@@ -133,52 +132,47 @@
       digitsCountdown.classList.remove('overtime');
     }
 
-    // 7. Icon State Handling
-    updateIcon(state, iconMode);
+    // 7. Multi-Icon Queue Handling (Requirement 11)
+    renderIcons(state, iconMode);
   }
 
-  function updateIcon(state, iconMode) {
-    if (iconMode === 'none') {
+  function renderIcons(state, iconMode) {
+    if (iconMode === 'none' || state.activeLayer === 'blackout') {
       [iconTime, iconCountup, iconCountdown].forEach((slot) => {
-        if (slot) slot.classList.remove('visible');
+        if (slot) slot.innerHTML = '';
       });
       return;
     }
 
-    const iconData = state.icon;
     const now = Date.now();
-    const isVisible =
-      iconData &&
-      iconData.name &&
-      state.activeLayer !== 'blackout' &&
-      (iconData.persistent || (iconData.expiresAt > 0 && now < iconData.expiresAt));
+    const activeLayer = state.activeLayer;
+
+    // Filter icons for active layer only (prevents paused leak from other layer)
+    const validIcons = (state.icons || []).filter(
+      (i) => i.layer === activeLayer && (i.persistent || i.expiresAt > now)
+    );
 
     let activeSlot = null;
-    let activeSymbol = null;
+    if (activeLayer === 'time') activeSlot = iconTime;
+    else if (activeLayer === 'countup') activeSlot = iconCountup;
+    else if (activeLayer === 'countdown') activeSlot = iconCountdown;
 
-    if (state.activeLayer === 'time') {
-      activeSlot = iconTime;
-      activeSymbol = iconSymbolTime;
-    } else if (state.activeLayer === 'countup') {
-      activeSlot = iconCountup;
-      activeSymbol = iconSymbolCountup;
-    } else if (state.activeLayer === 'countdown') {
-      activeSlot = iconCountdown;
-      activeSymbol = iconSymbolCountdown;
-    }
-
+    // Clear inactive slots
     [iconTime, iconCountup, iconCountdown].forEach((slot) => {
-      if (slot !== activeSlot && slot) {
-        slot.classList.remove('visible', 'color-gray', 'color-green', 'color-orange', 'color-lightblue', 'color-yellow');
-      }
+      if (slot !== activeSlot && slot) slot.innerHTML = '';
     });
 
-    if (isVisible && activeSlot && activeSymbol) {
-      activeSymbol.textContent = iconData.name;
-      activeSlot.className = `icon-slot visible color-${iconData.color || 'gray'}`;
-    } else if (activeSlot) {
-      activeSlot.classList.remove('visible');
-    }
+    if (!activeSlot) return;
+
+    // Render HTML for stacked icons
+    const html = validIcons
+      .map(
+        (i) =>
+          `<span class="icon-item color-${i.color || 'gray'} select-none" data-icon-id="${i.id}"><span class="material-symbols-rounded select-none">${i.name}</span></span>`
+      )
+      .join('');
+
+    activeSlot.innerHTML = html;
   }
 
   // Animation frame loop for continuous sub-second accuracy & colon blinking

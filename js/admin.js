@@ -1,6 +1,6 @@
 /**
- * TMR Admin Console Master Script (v3.1)
- * Powered by DaisyUI + Tailwind CSS, with real-time multi-layer preview crossfade.
+ * TMR Admin Console Master Script (v3.2)
+ * Full implementation of multi-icon queues, micro-adjustments, mutual exclusive buttons, and layer indicators.
  */
 
 (function () {
@@ -30,13 +30,9 @@
   const prevDigitsCountup = document.getElementById('prev-digits-countup');
   const prevDigitsCountdown = document.getElementById('prev-digits-countdown');
 
-  const prevIconTime = document.getElementById('prev-icon-time');
-  const prevIconCountup = document.getElementById('prev-icon-countup');
-  const prevIconCountdown = document.getElementById('prev-icon-countdown');
-
-  const prevSymbolTime = document.getElementById('prev-symbol-time');
-  const prevSymbolCountup = document.getElementById('prev-symbol-countup');
-  const prevSymbolCountdown = document.getElementById('prev-symbol-countdown');
+  const prevIconSlotTime = document.getElementById('prev-icon-slot-time');
+  const prevIconSlotCountup = document.getElementById('prev-icon-slot-countup');
+  const prevIconSlotCountdown = document.getElementById('prev-icon-slot-countdown');
 
   const previewActiveLabel = document.getElementById('preview-active-label');
   const btnOpenDisplay = document.getElementById('btn-open-display');
@@ -77,10 +73,13 @@
   const btnCountdownPause = document.getElementById('btn-countdown-pause');
   const btnCountdownReset = document.getElementById('btn-countdown-reset');
   const btnShowCountdown = document.getElementById('btn-show-countdown');
-  const btnAdjP60 = document.getElementById('btn-adj-p60');
-  const btnAdjM60 = document.getElementById('btn-adj-m60');
-  const btnAdjP30 = document.getElementById('btn-adj-p30');
-  const btnAdjM30 = document.getElementById('btn-adj-m30');
+
+  // Delta adjustment buttons (Requirement 14)
+  const btnDeltas = document.querySelectorAll('.btn-delta');
+  const inputCustomDeltaVal = document.getElementById('input-custom-delta-val');
+  const selectCustomDeltaUnit = document.getElementById('select-custom-delta-unit');
+  const btnApplyCustomDeltaPlus = document.getElementById('btn-apply-custom-delta-plus');
+  const btnApplyCustomDeltaMinus = document.getElementById('btn-apply-custom-delta-minus');
 
   // Bell alerts & Sound
   const bellRulesList = document.getElementById('bell-rules-list');
@@ -102,8 +101,12 @@
   const ruleInputM = document.getElementById('rule-input-m');
   const ruleInputS = document.getElementById('rule-input-s');
   const ruleInputRings = document.getElementById('rule-input-rings');
+  const ruleInputLong = document.getElementById('rule-input-long');
 
-  // Track connected display windows
+  // Layer buttons
+  const btnShowLayers = document.querySelectorAll('.btn-show-layer');
+
+  // Client connection tracker
   let lastClientPingTime = 0;
   let displayWindowRef = null;
 
@@ -120,11 +123,11 @@
     const isAlive = (Date.now() - lastClientPingTime < 5000) || (displayWindowRef && !displayWindowRef.closed);
     if (isAlive) {
       connDot.className = 'w-2 h-2 rounded-full bg-success shadow-[0_0_8px_#22c55e]';
-      connBadge.className = 'badge badge-outline border-success/40 text-success gap-1.5 py-3 px-3 text-xs font-medium';
+      connBadge.className = 'badge badge-outline border-success/40 text-success gap-1.5 py-3 px-3 text-xs font-medium select-none';
       connText.textContent = '展示視窗已連線';
     } else {
       connDot.className = 'w-2 h-2 rounded-full bg-gray-500';
-      connBadge.className = 'badge badge-outline gap-1.5 py-3 px-3 text-xs font-medium';
+      connBadge.className = 'badge badge-outline gap-1.5 py-3 px-3 text-xs font-medium select-none';
       connText.textContent = '未連線展示視窗';
     }
   }
@@ -151,7 +154,7 @@
     }
   });
 
-  // Layer switching buttons
+  // Master Layer Switcher
   activeLayerBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       const layer = btn.dataset.layer;
@@ -159,7 +162,15 @@
     });
   });
 
-  // Transition settings
+  // Card Show Layer Buttons (Requirement 2)
+  btnShowLayers.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const layer = btn.dataset.layer;
+      store.setActiveLayer(layer);
+    });
+  });
+
+  // Transition & Icon Settings
   toggleFadeAnim.addEventListener('change', () => {
     store.setFadeAnimation(toggleFadeAnim.checked, parseInt(selectFadeDuration.value));
   });
@@ -168,7 +179,6 @@
     store.setFadeAnimation(toggleFadeAnim.checked, parseInt(selectFadeDuration.value));
   });
 
-  // Icon display mode
   selectIconMode.addEventListener('change', () => {
     store.update((state) => {
       state.displaySettings.iconMode = selectIconMode.value;
@@ -235,13 +245,9 @@
     });
   });
 
-  btnShowTime.addEventListener('click', () => {
-    store.setActiveLayer('time');
-  });
-
-  // Mode 2: Count-up (Requirement 4: Auto-switch layer on start, mutually exclusive start/pause)
+  // Mode 2: Count-up
   btnCountupStart.addEventListener('click', () => {
-    store.startCountup(); // automatically switches layer to countup
+    store.startCountup();
   });
 
   btnCountupPause.addEventListener('click', () => {
@@ -252,11 +258,7 @@
     store.resetCountup();
   });
 
-  btnShowCountup.addEventListener('click', () => {
-    store.setActiveLayer('countup');
-  });
-
-  // Mode 3: Countdown (Requirement 4: Auto-switch layer on start, mutually exclusive start/pause)
+  // Mode 3: Countdown
   presetChips.forEach((chip) => {
     chip.addEventListener('click', () => {
       presetChips.forEach((c) => {
@@ -289,7 +291,7 @@
   });
 
   btnCountdownStart.addEventListener('click', () => {
-    store.startCountdown(); // automatically switches layer to countdown
+    store.startCountdown();
   });
 
   btnCountdownPause.addEventListener('click', () => {
@@ -300,14 +302,27 @@
     store.resetCountdown();
   });
 
-  btnShowCountdown.addEventListener('click', () => {
-    store.setActiveLayer('countdown');
+  // Requirement 14: ±5s, ±10s, ±15s, ±30s, ±45s, ±1m, ±3m, ±5m
+  btnDeltas.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const delta = parseInt(btn.dataset.delta) || 0;
+      if (delta !== 0) {
+        store.adjustCountdown(delta);
+      }
+    });
   });
 
-  btnAdjP60.addEventListener('click', () => store.adjustCountdown(60));
-  btnAdjM60.addEventListener('click', () => store.adjustCountdown(-60));
-  btnAdjP30.addEventListener('click', () => store.adjustCountdown(30));
-  btnAdjM30.addEventListener('click', () => store.adjustCountdown(-30));
+  // Requirement 14: Custom delta adjustment
+  function applyCustomDelta(multiplier) {
+    const val = parseInt(inputCustomDeltaVal.value) || 0;
+    if (val <= 0) return;
+    const unit = selectCustomDeltaUnit.value;
+    const seconds = val * (unit === 'min' ? 60 : 1) * multiplier;
+    store.adjustCountdown(seconds);
+  }
+
+  btnApplyCustomDeltaPlus.addEventListener('click', () => applyCustomDelta(1));
+  btnApplyCustomDeltaMinus.addEventListener('click', () => applyCustomDelta(-1));
 
   // Mode 4: Blackout
   btnToggleBlackout.addEventListener('click', () => {
@@ -342,18 +357,23 @@
     const s = parseInt(ruleInputS.value) || 0;
     const timeSec = type === 'at_zero' ? 0 : m * 60 + s;
     const rings = parseInt(ruleInputRings.value) || 1;
+    const isLong = ruleInputLong.checked;
 
-    store.addBellRule({ type, timeSec, rings });
+    store.addBellRule({ type, timeSec, rings, isLong });
     formAddBell.reset();
     modalAddBell.close();
   });
 
   /**
-   * Helper to format digits HTML with blinking colon
+   * Helper to format digits HTML with blinking colons (strictly trimmed, zero space)
    */
   function formatDigitsHTML(str, shouldBlink, isVisible) {
     const colonClass = shouldBlink && !isVisible ? 'digit-colon colon-hidden' : 'digit-colon';
-    return str.split(':').map((part) => `<span>${part}</span>`).join(`<span class="${colonClass}">:</span>`);
+    return str
+      .trim()
+      .split(':')
+      .map((part) => `<span>${part.trim()}</span>`)
+      .join(`<span class="${colonClass}">:</span>`);
   }
 
   // Subscribe to store state
@@ -380,9 +400,31 @@
     activeLayerBtns.forEach((btn) => {
       const isActive = btn.dataset.layer === active;
       if (isActive) {
-        btn.className = 'btn btn-sm btn-primary active-layer-btn';
+        btn.className = 'btn btn-sm btn-primary active-layer-btn select-none';
       } else {
-        btn.className = 'btn btn-sm btn-outline active-layer-btn';
+        btn.className = 'btn btn-sm btn-outline active-layer-btn select-none';
+      }
+    });
+
+    // Requirement 2: 「展示中」的圖層，其切換顯示按鈕改成 active
+    btnShowLayers.forEach((btn) => {
+      const layer = btn.dataset.layer;
+      const isCurrent = layer === active;
+      const textSpan = btn.querySelector('.btn-show-text');
+      if (isCurrent) {
+        btn.className = 'btn btn-sm btn-primary btn-active select-none btn-show-layer';
+        if (textSpan) {
+          if (layer === 'time') textSpan.textContent = '● 目前時間展示中';
+          else if (layer === 'countup') textSpan.textContent = '● 正計時展示中';
+          else if (layer === 'countdown') textSpan.textContent = '● 倒數計時展示中';
+        }
+      } else {
+        btn.className = 'btn btn-sm btn-outline btn-ghost select-none btn-show-layer';
+        if (textSpan) {
+          if (layer === 'time') textSpan.textContent = '切換顯示目前時間';
+          else if (layer === 'countup') textSpan.textContent = '切換顯示正計時';
+          else if (layer === 'countdown') textSpan.textContent = '切換顯示倒數';
+        }
       }
     });
 
@@ -392,6 +434,7 @@
         card.classList.toggle('is-active-layer', isCurrent);
         const liveBadge = card.querySelector('.live-indicator');
         if (liveBadge) {
+          // Requirement 7: Only show live badge on current card
           liveBadge.classList.toggle('hidden', !isCurrent);
         }
       }
@@ -413,7 +456,7 @@
       previewScreen.classList.add('no-fade');
     }
 
-    // 4. Update Preview Layers (Real crossfade animation)
+    // 4. Update Preview Layers (Requirement 7: blackout only active when active === 'blackout')
     prevLayerTime.classList.toggle('active', active === 'time');
     prevLayerCountup.classList.toggle('active', active === 'countup');
     prevLayerCountdown.classList.toggle('active', active === 'countdown');
@@ -447,11 +490,12 @@
 
     // Preview Layer: Count-up
     const cuRunning = state.countup.status === 'running';
+    const cuPaused = state.countup.status === 'paused';
     const cuStr = TimerStore.formatHMS(state.countup.elapsedMs);
     prevDigitsCountup.innerHTML = formatDigitsHTML(cuStr, cuRunning, isColonPhaseVisible);
     cardDigitsCountup.innerHTML = formatDigitsHTML(cuStr, cuRunning, isColonPhaseVisible);
 
-    // Requirement 4: Count-up Start / Pause mutually exclusive
+    // Requirement 12: Count-up Start / Pause mutual exclusive
     if (cuRunning) {
       btnCountupStart.classList.add('hidden');
       btnCountupPause.classList.remove('hidden');
@@ -460,15 +504,16 @@
     } else {
       btnCountupStart.classList.remove('hidden');
       btnCountupPause.classList.add('hidden');
-      const isPaused = state.countup.status === 'paused';
-      textCountupStart.textContent = isPaused ? '繼續計時' : '開始正計時';
-      statusCountup.className = isPaused ? 'badge badge-warning badge-outline text-xs' : 'badge badge-neutral text-xs';
-      statusCountup.textContent = isPaused ? '已暫停' : '待命';
+      textCountupStart.textContent = cuPaused ? '繼續計時' : '開始正計時';
+      statusCountup.className = cuPaused ? 'badge badge-warning badge-outline text-xs' : 'badge badge-neutral text-xs';
+      statusCountup.textContent = cuPaused ? '已暫停' : '待命';
     }
 
     // Preview Layer: Countdown & Overtime
     const cd = state.countdown;
     const cdRunning = cd.status === 'running' || cd.status === 'overtime';
+    const cdPaused = cd.status === 'paused';
+
     if (cd.status === 'overtime') {
       const prefix = state.displaySettings?.overtimePrefix || '+';
       const cdStr = `${prefix}${TimerStore.formatHMS(cd.overtimeMs)}`;
@@ -484,99 +529,91 @@
       cardDigitsCountdown.innerHTML = formatDigitsHTML(cdStr, cdRunning, isColonPhaseVisible);
       prevDigitsCountdown.classList.remove('overtime');
       cardDigitsCountdown.classList.remove('overtime');
-      const isPaused = cd.status === 'paused';
-      statusCountdown.className = cdRunning ? 'badge badge-info badge-outline text-xs' : isPaused ? 'badge badge-warning badge-outline text-xs' : 'badge badge-neutral text-xs';
-      statusCountdown.textContent = cdRunning ? '倒數中' : isPaused ? '已暫停' : '待命';
+      statusCountdown.className = cdRunning ? 'badge badge-info badge-outline text-xs' : cdPaused ? 'badge badge-warning badge-outline text-xs' : 'badge badge-neutral text-xs';
+      statusCountdown.textContent = cdRunning ? '倒數中' : cdPaused ? '已暫停' : '待命';
     }
 
-    // Requirement 4: Countdown Start / Pause mutually exclusive
+    // Requirement 12: Countdown Start / Pause mutual exclusive
     if (cdRunning) {
       btnCountdownStart.classList.add('hidden');
       btnCountdownPause.classList.remove('hidden');
     } else {
       btnCountdownStart.classList.remove('hidden');
       btnCountdownPause.classList.add('hidden');
-      textCountdownStart.textContent = cd.status === 'paused' ? '繼續倒數' : '開始倒數';
+      textCountdownStart.textContent = cdPaused ? '繼續倒數' : '開始倒數';
     }
 
-    // 5. Update Preview Icons
-    updatePreviewIcons(state, iconMode);
+    // 5. Update Preview Icons Queue (Requirement 11)
+    renderPreviewIcons(state, iconMode);
 
-    // 6. Render Bell Alert Rules (Only "何時響幾次", no remarks)
+    // 6. Render Bell Alert Rules (Requirement 13)
     renderBellRules(state.bellRules);
 
     // 7. Update Blackout Button text
     textBlackoutBtn.textContent = active === 'blackout' ? '解除黑畫面 (恢復展示)' : '立即切換黑畫面';
   }
 
-  function updatePreviewIcons(state, iconMode) {
-    if (iconMode === 'none') {
-      [prevIconTime, prevIconCountup, prevIconCountdown].forEach((slot) => {
-        if (slot) slot.classList.remove('visible');
+  function renderPreviewIcons(state, iconMode) {
+    if (iconMode === 'none' || state.activeLayer === 'blackout') {
+      [prevIconSlotTime, prevIconSlotCountup, prevIconSlotCountdown].forEach((slot) => {
+        if (slot) slot.innerHTML = '';
       });
       return;
     }
 
-    const iconData = state.icon;
     const now = Date.now();
-    const isVisible =
-      iconData &&
-      iconData.name &&
-      state.activeLayer !== 'blackout' &&
-      (iconData.persistent || (iconData.expiresAt > 0 && now < iconData.expiresAt));
+    const activeLayer = state.activeLayer;
+
+    // Filter icons for active layer only (prevents paused leak from other layer)
+    const validIcons = (state.icons || []).filter(
+      (i) => i.layer === activeLayer && (i.persistent || i.expiresAt > now)
+    );
 
     let activeSlot = null;
-    let activeSymbol = null;
+    if (activeLayer === 'time') activeSlot = prevIconSlotTime;
+    else if (activeLayer === 'countup') activeSlot = prevIconSlotCountup;
+    else if (activeLayer === 'countdown') activeSlot = prevIconSlotCountdown;
 
-    if (state.activeLayer === 'time') {
-      activeSlot = prevIconTime;
-      activeSymbol = prevSymbolTime;
-    } else if (state.activeLayer === 'countup') {
-      activeSlot = prevIconCountup;
-      activeSymbol = prevSymbolCountup;
-    } else if (state.activeLayer === 'countdown') {
-      activeSlot = prevIconCountdown;
-      activeSymbol = prevSymbolCountdown;
-    }
-
-    [prevIconTime, prevIconCountup, prevIconCountdown].forEach((slot) => {
-      if (slot !== activeSlot && slot) {
-        slot.classList.remove('visible', 'color-gray', 'color-green', 'color-orange', 'color-lightblue', 'color-yellow');
-      }
+    [prevIconSlotTime, prevIconSlotCountup, prevIconSlotCountdown].forEach((slot) => {
+      if (slot !== activeSlot && slot) slot.innerHTML = '';
     });
 
-    if (isVisible && activeSlot && activeSymbol) {
-      activeSymbol.textContent = iconData.name;
-      activeSlot.className = `preview-icon visible color-${iconData.color || 'gray'}`;
-    } else if (activeSlot) {
-      activeSlot.classList.remove('visible');
-    }
+    if (!activeSlot) return;
+
+    const html = validIcons
+      .map(
+        (i) =>
+          `<span class="preview-icon-item color-${i.color || 'gray'} select-none" data-icon-id="${i.id}"><span class="material-symbols-rounded select-none">${i.name}</span></span>`
+      )
+      .join('');
+
+    activeSlot.innerHTML = html;
   }
 
   function renderBellRules(rules) {
     bellRulesList.innerHTML = '';
     if (!rules || rules.length === 0) {
-      bellRulesList.innerHTML = '<div class="text-xs text-base-content/50 py-1">尚未設定任何響鈴規則</div>';
+      bellRulesList.innerHTML = '<div class="text-xs text-base-content/50 py-1 select-none">尚未設定任何響鈴規則</div>';
       return;
     }
 
     rules.forEach((rule) => {
       const div = document.createElement('div');
-      div.className = 'flex items-center justify-between bg-base-200 px-3 py-2 rounded text-xs';
+      div.className = 'flex items-center justify-between bg-base-200 px-3 py-2 rounded text-xs select-none';
 
       const ruleText = TimerStore.formatRuleText(rule);
 
       div.innerHTML = `
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 select-none">
           <input type="checkbox" class="toggle toggle-primary toggle-xs" ${rule.enabled ? 'checked' : ''} data-rule-toggle="${rule.id}" />
           <span class="font-medium text-white">${ruleText}</span>
         </div>
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1 select-none">
           <button class="btn btn-ghost btn-circle btn-xs text-base-content/70 hover:text-white" data-rule-test="${rule.id}" title="試聽響鈴">
-            <span class="material-symbols-rounded text-sm">volume_up</span>
+            <span class="material-symbols-rounded text-sm select-none">volume_up</span>
           </button>
           <button class="btn btn-ghost btn-circle btn-xs text-error hover:bg-error/20" data-rule-delete="${rule.id}" title="刪除規則">
-            <span class="material-symbols-rounded text-sm">delete</span>
+            <span class="material-symbols-rounded text-sm select-none">delete</span>
           </button>
         </div>
       `;
@@ -589,7 +626,7 @@
       const testBtn = div.querySelector(`[data-rule-test="${rule.id}"]`);
       testBtn.addEventListener('click', () => {
         if (window.bellSynth) {
-          window.bellSynth.playBell(rule.rings, store.state.soundSettings.sound);
+          window.bellSynth.playBell(rule.rings, store.state.soundSettings.sound, !!rule.isLong);
         }
       });
 
