@@ -85,6 +85,9 @@
   justify-content: center;
   padding: 0.5rem;
   width: 100%;
+  transform: scale(var(--clock-scale, 1));
+  transform-origin: center center;
+  transition: transform 120ms ease-out;
 }
 
 .preview-content.mode-side {
@@ -262,10 +265,16 @@
   box-shadow: 0 0 0 1px #6366f1, 0 8px 24px rgba(99, 102, 241, 0.15);
 }
 
-/* Active State for Display Buttons: Non-clickable & locked */
-.btn-show-layer.btn-active,
-.active-layer-btn.btn-primary {
+/* Disabled State for Active Display Buttons (Requirement 2) */
+.btn-show-layer:disabled,
+.btn-show-layer.btn-disabled,
+.active-layer-btn:disabled,
+.active-layer-btn.btn-disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
   pointer-events: none !important;
-  cursor: default !important;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.35);
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: none !important;
 }

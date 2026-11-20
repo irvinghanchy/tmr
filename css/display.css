@@ -13,6 +13,7 @@
   --icon-lightblue: #38bdf8;
   --icon-yellow: #facc15;
   --fade-duration: 400ms;
+  --clock-scale: 1;
 }
 
 * {
@@ -117,6 +118,9 @@ html, body {
   justify-content: center;
   text-align: center;
   padding: 1rem;
+  transform: scale(var(--clock-scale, 1));
+  transform-origin: center center;
+  transition: transform 120ms ease-out;
 }
 
 /* --- Layout Mode 1: Side Icon (Symmetrical margins with identical left spacer) --- */

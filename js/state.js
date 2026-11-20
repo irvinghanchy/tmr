@@ -80,7 +80,8 @@ const defaultState = {
     iconMode: 'side',          // 'side' | 'bottom' | 'none'
     iconDurationMs: 1250,      // 1.25s
     overtimePrefix: '+',       // '+' prefix when overtime
-    allowHourRollover: false   // Default false: minutes do not roll over to hours, max 99:59
+    allowHourRollover: false,  // Default false: minutes do not roll over to hours, max 99:59
+    borderDistance: 100        // 0 (no margin, fills to edge) to 100 (current status, default)
   },
 
   version: 3.3
@@ -286,6 +287,14 @@ class TimerStore {
     this.update((state) => {
       state.fadeAnimation = !!enabled;
       if (durationMs) state.fadeDurationMs = durationMs;
+    });
+  }
+
+  setBorderDistance(distance) {
+    const val = Math.max(0, Math.min(100, parseInt(distance) ?? 100));
+    this.update((state) => {
+      if (!state.displaySettings) state.displaySettings = {};
+      state.displaySettings.borderDistance = val;
     });
   }
 

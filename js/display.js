@@ -88,6 +88,11 @@
       }
     });
 
+    // Requirement 1: Border Distance / Scale adjustment (0 = no boundary, 100 = default current status)
+    const borderDist = state.displaySettings?.borderDistance ?? 100;
+    const clockScale = 1.0 + (100 - borderDist) * 0.0036;
+    stageContainer.style.setProperty('--clock-scale', clockScale);
+
     // 3. Active Layer Switcher (Pure opacity transition)
     const active = state.activeLayer;
     layerTime.classList.toggle('active', active === 'time');

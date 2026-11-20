@@ -43,6 +43,8 @@
   const selectFadeDuration = document.getElementById('select-fade-duration');
   const selectIconMode = document.getElementById('select-icon-mode');
   const toggleAllowHour = document.getElementById('toggle-allow-hour');
+  const sliderBorderDistance = document.getElementById('slider-border-distance');
+  const labelBorderDistance = document.getElementById('label-border-distance');
 
   // Mode 1 (Time)
   const cardModeTime = document.getElementById('card-mode-time');
@@ -160,7 +162,7 @@
   // Master Layer Switcher
   activeLayerBtns.forEach((btn) => {
     btn.addEventListener('click', (e) => {
-      if (btn.classList.contains('pointer-events-none')) {
+      if (btn.disabled || btn.classList.contains('btn-disabled') || btn.classList.contains('pointer-events-none')) {
         e.preventDefault();
         return;
       }
@@ -173,7 +175,7 @@
   // Card Show Layer Buttons: Click disabled when active
   btnShowLayers.forEach((btn) => {
     btn.addEventListener('click', (e) => {
-      if (btn.classList.contains('pointer-events-none') || btn.classList.contains('btn-active')) {
+      if (btn.disabled || btn.classList.contains('btn-disabled') || btn.classList.contains('pointer-events-none')) {
         e.preventDefault();
         return;
       }
@@ -203,6 +205,18 @@
       store.update((state) => {
         state.displaySettings.allowHourRollover = toggleAllowHour.checked;
       });
+    });
+  }
+
+  if (sliderBorderDistance) {
+    sliderBorderDistance.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value) ?? 100;
+      store.setBorderDistance(val);
+      if (labelBorderDistance) {
+        if (val === 100) labelBorderDistance.textContent = '現況預設 (100%)';
+        else if (val === 0) labelBorderDistance.textContent = '無邊界 (0%)';
+        else labelBorderDistance.textContent = `${val}%`;
+      }
     });
   }
 
@@ -416,6 +430,19 @@
     selectIconMode.value = state.displaySettings?.iconMode || 'side';
     if (toggleAllowHour) toggleAllowHour.checked = allowHour;
 
+    // Requirement 1: Border distance sync & preview scale
+    const borderDist = state.displaySettings?.borderDistance ?? 100;
+    if (sliderBorderDistance && document.activeElement !== sliderBorderDistance) {
+      sliderBorderDistance.value = String(borderDist);
+    }
+    if (labelBorderDistance) {
+      if (borderDist === 100) labelBorderDistance.textContent = '現況預設 (100%)';
+      else if (borderDist === 0) labelBorderDistance.textContent = '無邊界 (0%)';
+      else labelBorderDistance.textContent = `${borderDist}%`;
+    }
+    const clockScale = 1.0 + (100 - borderDist) * 0.0036;
+    previewScreen.style.setProperty('--clock-scale', clockScale);
+
     checkTime24h.checked = !!state.timeConfig.format24;
     checkTimeSeconds.checked = !!state.timeConfig.showSeconds;
     checkTimeDate.checked = !!state.timeConfig.showDate;
@@ -426,29 +453,28 @@
     // 2. Active Layer buttons & card outlines
     const active = state.activeLayer;
 
-    // Master Switcher Buttons: lock active button so it's not clickable
+    // Master Switcher Buttons: change active button to Disabled button (Requirement 2)
     activeLayerBtns.forEach((btn) => {
       const isActive = btn.dataset.layer === active;
       if (isActive) {
-        btn.className = 'btn btn-sm btn-primary active-layer-btn select-none pointer-events-none cursor-default shadow-sm';
+        btn.disabled = true;
+        btn.className = 'btn btn-sm btn-disabled active-layer-btn select-none';
       } else {
-        btn.className = 'btn btn-sm btn-outline active-layer-btn select-none pointer-events-auto cursor-pointer';
+        btn.disabled = false;
+        btn.className = 'btn btn-sm btn-outline active-layer-btn select-none cursor-pointer';
       }
     });
 
-    // Card Switch Display Buttons:
-    // When active: styled as active & locked, WITHOUT changing text to "● 展示中"
+    // Card Switch Display Buttons: change active button to Disabled button (Requirement 2)
     btnShowLayers.forEach((btn) => {
       const layer = btn.dataset.layer;
       const isCurrent = layer === active;
       if (isCurrent) {
-        btn.className = 'btn btn-sm btn-primary btn-active select-none btn-show-layer pointer-events-none cursor-default shadow-sm';
-        btn.setAttribute('tabindex', '-1');
-        btn.setAttribute('aria-disabled', 'true');
+        btn.disabled = true;
+        btn.className = 'btn btn-sm btn-disabled select-none btn-show-layer';
       } else {
-        btn.className = 'btn btn-sm btn-outline btn-ghost select-none btn-show-layer pointer-events-auto cursor-pointer';
-        btn.removeAttribute('tabindex');
-        btn.removeAttribute('aria-disabled');
+        btn.disabled = false;
+        btn.className = 'btn btn-sm btn-outline btn-ghost select-none btn-show-layer cursor-pointer';
       }
     });
 
