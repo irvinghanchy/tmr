@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TMR 舞台展示時鐘</title>
+  
+  <!-- Roboto Flex (Tabular Monospace Figures) & Material Symbols Rounded -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..500,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="./css/display.css">
+</head>
+<body>
+
+  <!-- Floating HUD Toolbar (appears on mouse hover) -->
+  <aside id="hud-controls" aria-label="展示視窗工具列">
+    <div class="sync-dot" id="sync-indicator" title="與控制台同步連線正常"></div>
+    <button class="hud-btn" id="btn-fullscreen" title="切換全螢幕 (F)">
+      <span class="material-symbols-rounded">fullscreen</span>
+    </button>
+  </aside>
+
+  <!-- Main Stage Canvas -->
+  <main id="stage-container">
+    
+    <!-- Layer (a): 目前時間 Current Time -->
+    <section id="layer-time" class="layer-wrapper" aria-label="目前時間">
+      <div class="clock-content" id="content-time">
+        <div class="time-box">
+          <div class="clock-digits tabular-nums" id="digits-time">00:00:00</div>
+          <div class="clock-subline" id="subline-date"></div>
+        </div>
+        <div class="icon-slot" id="icon-time">
+          <span class="material-symbols-rounded" id="icon-symbol-time">watch</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Layer (b): 正計時 Count-Up -->
+    <section id="layer-countup" class="layer-wrapper" aria-label="正計時">
+      <div class="clock-content" id="content-countup">
+        <div class="clock-digits tabular-nums" id="digits-countup">00:00</div>
+        <div class="icon-slot" id="icon-countup">
+          <span class="material-symbols-rounded" id="icon-symbol-countup">timer_arrow_up</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Layer (c): 倒數計時 Countdown -->
+    <section id="layer-countdown" class="layer-wrapper" aria-label="倒數計時">
+      <div class="clock-content" id="content-countdown">
+        <div class="clock-digits tabular-nums" id="digits-countdown">05:00</div>
+        <div class="icon-slot" id="icon-countdown">
+          <span class="material-symbols-rounded" id="icon-symbol-countdown">timer_arrow_down</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Layer (d): 黑畫面 Blackout -->
+    <section id="layer-blackout" class="layer-wrapper" aria-label="黑畫面"></section>
+
+  </main>
+
+  <script src="./js/audio.js"></script>
+  <script src="./js/state.js"></script>
+  <script src="./js/display.js"></script>
+</body>
+</html>

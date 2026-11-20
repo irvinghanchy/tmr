@@ -1,0 +1,277 @@
+/* Google Fonts: Roboto Flex & Material Symbols Rounded */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..500,0,0');
+
+:root {
+  --bg-color: #000000;
+  --text-normal: #ffffff;
+  --text-red: #ef4444;
+  --text-dim: #71717a;
+  --icon-white: #ffffff;
+  --icon-green: #22c55e;
+  --icon-orange: #f97316;
+  --icon-lightblue: #38bdf8;
+  --icon-yellow: #facc15;
+  --fade-duration: 400ms;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-color);
+  color: var(--text-normal);
+  font-family: 'Roboto Flex', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: default;
+}
+
+/* Tabular figures (monospace numbers) for Roboto Flex */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Material Symbols Rounded: Not Fill, Weight 400-500 */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: 450;
+  font-style: normal;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings: 'FILL' 0, 'wght' 450, 'GRAD' 0, 'opsz' 48;
+}
+
+/* Main Display Container */
+#stage-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-color);
+}
+
+/* Stage Layers Wrapper */
+.layer-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--fade-duration) cubic-bezier(0.4, 0, 0.2, 1),
+              visibility var(--fade-duration) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Active Layer */
+.layer-wrapper.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Instant transition if fade animation disabled */
+.no-fade .layer-wrapper {
+  transition: none !important;
+}
+
+/* Blackout layer */
+#layer-blackout {
+  background-color: #000000;
+  z-index: 50;
+}
+
+/* Clock Content Box */
+.clock-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 3vw, 3.5rem);
+  text-align: center;
+  padding: 1rem;
+}
+
+/* Clock layout with icon on left */
+.clock-content.icon-left {
+  flex-direction: row-reverse;
+}
+
+/* Primary Timer Digits */
+.clock-digits {
+  font-size: min(23vw, 36vh);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text-normal);
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  transition: color 250ms ease, text-shadow 250ms ease;
+}
+
+/* Overtime styling in countdown */
+.clock-digits.overtime {
+  color: var(--text-red) !important;
+  text-shadow: 0 0 35px rgba(239, 68, 68, 0.6), 0 0 70px rgba(239, 68, 68, 0.25) !important;
+  animation: overtimePulse 2s ease-in-out infinite;
+}
+
+@keyframes overtimePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.88;
+  }
+}
+
+/* Date/Seconds subline for current time */
+.clock-subline {
+  font-size: min(4vw, 5vh);
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-top: clamp(0.5rem, 1.5vh, 1.5rem);
+  letter-spacing: 0.05em;
+}
+
+.time-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Icon Slot Beside Clock */
+.icon-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(14vw, 22vh);
+  height: min(14vw, 22vh);
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.icon-slot.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Material symbol in slot */
+.icon-slot .material-symbols-rounded {
+  font-size: min(13vw, 20vh);
+  font-variation-settings: 'FILL' 0, 'wght' 450, 'GRAD' 0, 'opsz' 48;
+}
+
+/* Icon Colors */
+.icon-slot.color-white {
+  color: var(--icon-white);
+  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.5));
+}
+
+.icon-slot.color-green {
+  color: var(--icon-green);
+  filter: drop-shadow(0 0 20px rgba(34, 197, 94, 0.6));
+}
+
+.icon-slot.color-orange {
+  color: var(--icon-orange);
+  filter: drop-shadow(0 0 20px rgba(249, 115, 22, 0.6));
+}
+
+.icon-slot.color-lightblue {
+  color: var(--icon-lightblue);
+  filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.6));
+}
+
+.icon-slot.color-yellow {
+  color: var(--icon-yellow);
+  filter: drop-shadow(0 0 24px rgba(250, 204, 21, 0.7));
+  animation: bellRingAnim 0.8s ease-in-out infinite alternate;
+}
+
+/* Subtle bell ringing animation */
+@keyframes bellRingAnim {
+  0% {
+    transform: rotate(-14deg) scale(1);
+  }
+  100% {
+    transform: rotate(14deg) scale(1.08);
+  }
+}
+
+/* Overlay Quick HUD Controls (Hidden by default, shown on mouse move) */
+#hud-controls {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(24, 24, 27, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+#hud-controls.show {
+  opacity: 1;
+}
+
+.hud-btn {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 150ms ease;
+}
+
+.hud-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.hud-btn .material-symbols-rounded {
+  font-size: 1.35rem;
+}
+
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  margin-right: 0.25rem;
+}
