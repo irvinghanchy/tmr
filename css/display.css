@@ -198,9 +198,11 @@ html, body {
   50% { opacity: 0.88; }
 }
 
-/* Colons: Instant blinking without fade or transition */
+/* Colons: Visually centered with digits (shifted up ~0.08em) + instant blinking */
 .digit-colon {
   display: inline-block;
+  position: relative;
+  transform: translateY(-0.085em);
   transition: none !important;
 }
 

@@ -163,9 +163,11 @@
 .preview-icon.color-lightblue { color: #38bdf8; }
 .preview-icon.color-yellow { color: #facc15; }
 
-/* Colons: Instant blinking without fade */
+/* Colons: Visually centered with digits (shifted up ~0.08em) + instant blinking */
 .digit-colon {
   display: inline-block;
+  position: relative;
+  transform: translateY(-0.085em);
   transition: none !important;
 }
 
