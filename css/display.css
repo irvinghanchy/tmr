@@ -329,15 +329,6 @@ html, body {
   filter: drop-shadow(0 0 24px rgba(250, 204, 21, 0.7));
 }
 
-.icon-item.color-yellow .material-symbols-rounded {
-  animation: bellRingAnim 0.7s ease-in-out infinite alternate;
-}
-
-@keyframes bellRingAnim {
-  0% { transform: rotate(-12deg) scale(1); }
-  100% { transform: rotate(12deg) scale(1.08); }
-}
-
 /* Primary Timer Digits */
 .clock-digits {
   font-size: min(23vw, 36vh);
