@@ -256,10 +256,30 @@
   }
 
   btnTestChime.addEventListener('click', () => {
-    if (window.bellSynth) {
-      window.bellSynth.playBell(1, store.state.soundSettings.sound);
-    }
+    store.triggerBellAlert(1, store.state.soundSettings.sound, false);
   });
+
+  // Demo Bell Mode (示範響鈴模式: 短1..3, 長1..3, 自訂)
+  const btnDemoBells = document.querySelectorAll('.btn-demo-bell');
+  const demoBellType = document.getElementById('demo-bell-type');
+  const demoBellRings = document.getElementById('demo-bell-rings');
+  const btnDemoCustomBell = document.getElementById('btn-demo-custom-bell');
+
+  btnDemoBells.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const rings = parseInt(btn.dataset.rings) || 1;
+      const isLong = btn.dataset.long === 'true';
+      store.triggerBellAlert(rings, store.state.soundSettings.sound, isLong);
+    });
+  });
+
+  if (btnDemoCustomBell) {
+    btnDemoCustomBell.addEventListener('click', () => {
+      const isLong = demoBellType ? demoBellType.value === 'long' : false;
+      const rings = Math.max(1, Math.min(10, parseInt(demoBellRings ? demoBellRings.value : 1) || 1));
+      store.triggerBellAlert(rings, store.state.soundSettings.sound, isLong);
+    });
+  }
 
   // Mode 1: Time
   checkTime24h.addEventListener('change', () => {
@@ -733,9 +753,7 @@
 
       const testBtn = div.querySelector(`[data-rule-test="${rule.id}"]`);
       testBtn.addEventListener('click', () => {
-        if (window.bellSynth) {
-          window.bellSynth.playBell(rule.rings, store.state.soundSettings.sound, !!rule.isLong);
-        }
+        store.triggerBellAlert(rule.rings, store.state.soundSettings.sound, !!rule.isLong);
       });
 
       const delBtn = div.querySelector(`[data-rule-delete="${rule.id}"]`);

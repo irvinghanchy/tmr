@@ -231,6 +231,9 @@ class TimerStore {
       if (iconConfig.persistent && i.name === iconConfig.name && i.layer === newIcon.layer) {
         return false;
       }
+      if (newIcon.name === 'notifications_active' && i.name === 'notifications_active' && i.layer === newIcon.layer) {
+        return false;
+      }
       return i.id !== newIcon.id;
     });
 
@@ -496,23 +499,27 @@ class TimerStore {
     });
   }
 
-  triggerBellAlert(rings = 1, sound = 'beep', isLong = false) {
+  triggerBellAlert(rings = 1, sound = 'beep', isLong = false, layer = null) {
     const soundType = sound || this.state.soundSettings.sound || 'beep';
-    const ringCount = Math.max(1, rings);
+    const ringCount = Math.max(1, Math.min(10, rings));
 
     if (window.bellSynth) {
       window.bellSynth.playBell(ringCount, soundType, isLong);
     }
 
-    const duration = ringCount * (isLong ? 600 : 250) + 1200;
-    this.update((state) => {
-      this.addIcon({
-        name: 'notifications_active',
-        color: 'yellow',
-        layer: 'countdown',
-        durationMs: duration
+    // Bell icon appears on current active layer unless blackout
+    const targetLayer = layer || this.state.activeLayer;
+    if (targetLayer && targetLayer !== 'blackout') {
+      const duration = ringCount * (isLong ? 600 : 250) + 1200;
+      this.update((state) => {
+        this.addIcon({
+          name: 'notifications_active',
+          color: 'yellow',
+          layer: targetLayer,
+          durationMs: duration
+        });
       });
-    });
+    }
 
     this.broadcast('BELL_TRIGGER', { rings: ringCount, sound: soundType, isLong });
   }
